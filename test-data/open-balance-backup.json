@@ -1,0 +1,61 @@
+{
+  "assets": [
+    {
+      "id": "j1",
+      "name": "招行活期",
+      "category": "cash_deposit",
+      "subCategory": "活期存款",
+      "marketValue": 80000,
+      "currency": "CNY",
+      "liquidity": "high",
+      "riskLevel": "low",
+      "heldAt": "招商银行"
+    },
+    {
+      "id": "j2",
+      "name": "沪深300ETF",
+      "category": "equity",
+      "subCategory": "指数/ETF基金",
+      "marketValue": 150000,
+      "currency": "CNY",
+      "liquidity": "high",
+      "riskLevel": "high",
+      "expectedReturnPct": 8,
+      "heldAt": "华泰证券"
+    },
+    {
+      "id": "j3",
+      "name": "自住房·阳光花园",
+      "category": "real_estate",
+      "subCategory": "自住房",
+      "marketValue": 3000000,
+      "currency": "CNY",
+      "liquidity": "low",
+      "riskLevel": "medium",
+      "isPrimaryResidence": true,
+      "heldAt": "—"
+    }
+  ],
+  "liabilities": [
+    {
+      "id": "jl1",
+      "name": "按揭贷款",
+      "type": "房贷",
+      "remainingPrincipal": 900000,
+      "annualRatePct": 3.95,
+      "monthlyPayment": 7000,
+      "remainingMonths": 180,
+      "collateralAssetId": "j3"
+    }
+  ],
+  "profile": {
+    "memberAges": [36, 34],
+    "dependentCount": 1,
+    "dependentAges": [5],
+    "annualIncome": 320000,
+    "monthlyEssentialExpense": 12000,
+    "incomeStability": "stable",
+    "riskToleranceScore": 55,
+    "retirementAge": 60
+  }
+}
