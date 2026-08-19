@@ -7,15 +7,14 @@
 
 import type { Snapshot, Asset, AssetCategory } from '../types'
 import {
-  CATEGORY_LIQUIDITY,
   CATEGORY_QUADRANT,
   EXPECTED_RETURNS,
   VOLATILITIES,
   CORRELATION_MATRIX,
   RISK_FREE_RATE,
-  INCOME_CATEGORIES,
 } from '../data/marketParams'
 import { ASSET_CATEGORY_ORDER } from '../types'
+import { parseDateToMs } from '../utils/dates'
 
 // --- Basic totals ---
 
@@ -377,46 +376,89 @@ export function retirementSufficiency(snapshot: Snapshot): number {
 
 // --- Maturity Ladder Check (Q12) ---
 
-export function hasMaturityGap(snapshot: Snapshot): boolean {
-  const monthlyExpense = snapshot.profile.monthlyEssentialExpense
-  const yearNeed = monthlyExpense * 12
+const DEPOSIT_LIKE_SUBCATEGORIES = ['定期存款', '大额存单', '银行理财']
 
-  // Get deposits/WMP maturing within 12 months
-  const maturingInYear = snapshot.assets
+/**
+ * 12 个月内可到期兑现的固收/存款市值，是否足以覆盖未来一年的刚性支出。
+ * 用 maturityDate/lockUpUntil 与基准日期精确比较；无日期的资产不计入。
+ */
+export function maturingValueWithinYear(
+  snapshot: Snapshot,
+  referenceDate: string
+): number {
+  const refMs = parseDateToMs(referenceDate) ?? Date.now()
+  const oneYearLater = refMs + 365 * 86_400_000
+
+  return snapshot.assets
     .filter(
       (a) =>
-        (a.category === 'cash_deposit' && a.subCategory === '定期存款') ||
-        (a.subCategory === '大额存单') ||
-        (a.category === 'fixed_income' && a.subCategory === '银行理财')
+        (a.category === 'cash_deposit' && DEPOSIT_LIKE_SUBCATEGORIES.includes(a.subCategory ?? '')) ||
+        (a.category === 'fixed_income' && DEPOSIT_LIKE_SUBCATEGORIES.includes(a.subCategory ?? ''))
     )
     .reduce((sum, a) => {
-      if (!a.maturityDate && !a.lockUpUntil) return sum
-      // Simple check: if have maturity/lockup date, assume some will mature
-      return sum + a.marketValue * 0.3 // rough proxy
+      const dueMs =
+        parseDateToMs(a.maturityDate) ?? parseDateToMs(a.lockUpUntil)
+      if (dueMs === null) return sum
+      if (dueMs >= refMs && dueMs <= oneYearLater) return sum + a.marketValue
+      return sum
     }, 0)
+}
 
+export function hasMaturityGap(snapshot: Snapshot, referenceDate: string): boolean {
+  const yearNeed = snapshot.profile.monthlyEssentialExpense * 12
+  if (yearNeed === 0) return false
+  const maturingInYear = maturingValueWithinYear(snapshot, referenceDate)
   return maturingInYear < yearNeed * 0.5
 }
 
 // --- Single WMP Issuer Concentration (Q12) ---
 
-export function maxWMPIssuerShare(assets: Asset[]): number {
+export interface IssuerConcentration {
+  /** 单一发行方占固收总市值的最大比例 (0-1) */
+  maxShare: number
+  /** 该发行方名称（可能为 null，固收为空时） */
+  topIssuer: string | null
+  /** 已标注发行方的固收市值覆盖率 (0-1)。<1 说明部分资产缺 issuer，集中度可能被低估 */
+  coverage: number
+}
+
+/**
+ * 按发行方（issuer）而非持有机构（heldAt）计算固收集中度。
+ * 未标注 issuer 的固收资产不计入集中度分子，但通过 coverage 暴露数据缺口。
+ */
+export function maxWMPIssuerShare(assets: Asset[]): IssuerConcentration {
   const fixedIncomeTotal = categoryTotal(assets, 'fixed_income')
-  if (fixedIncomeTotal === 0) return 0
+  if (fixedIncomeTotal === 0) {
+    return { maxShare: 0, topIssuer: null, coverage: 1 }
+  }
 
   const wmpByIssuer: Record<string, number> = {}
+  let taggedValue = 0
+
   for (const asset of assets) {
-    if (asset.category === 'fixed_income' && asset.heldAt) {
-      wmpByIssuer[asset.heldAt] =
-        (wmpByIssuer[asset.heldAt] || 0) + asset.marketValue
+    if (asset.category !== 'fixed_income') continue
+    if (asset.issuer) {
+      wmpByIssuer[asset.issuer] = (wmpByIssuer[asset.issuer] || 0) + asset.marketValue
+      taggedValue += asset.marketValue
     }
   }
 
-  const maxShare = Math.max(
-    ...Object.values(wmpByIssuer).map((v) => v / fixedIncomeTotal),
-    0
-  )
-  return maxShare
+  let topIssuer: string | null = null
+  let maxIssuerValue = 0
+  for (const [issuer, value] of Object.entries(wmpByIssuer)) {
+    if (value > maxIssuerValue) {
+      maxIssuerValue = value
+      topIssuer = issuer
+    }
+  }
+
+  // 集中度按已标注发行方的部分计算；覆盖率单独暴露数据缺口
+  const base = taggedValue > 0 ? taggedValue : fixedIncomeTotal
+  return {
+    maxShare: maxIssuerValue / base,
+    topIssuer,
+    coverage: taggedValue / fixedIncomeTotal,
+  }
 }
 
 // --- Correlation Risk: find pairwise high correlations (Q14) ---

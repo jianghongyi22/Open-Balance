@@ -14,9 +14,9 @@ import { check13 } from './check13-portfolioRisk'
 import { check14 } from './check14-correlation'
 import { check15 } from './check15-cashDrag'
 import { check16 } from './check16-cashFlow'
-import type { CheckResult, Snapshot } from '../../types'
+import type { CheckResult, Snapshot, EngineContext } from '../../types'
 
-export type CheckFn = (snapshot: Snapshot) => CheckResult
+export type CheckFn = (snapshot: Snapshot, ctx?: EngineContext) => CheckResult
 
 export const ALL_CHECKS: CheckFn[] = [
   check01, check02, check03, check04, check05, check06, check07, check08,

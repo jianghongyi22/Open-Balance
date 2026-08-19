@@ -1,25 +1,43 @@
 // ============================================================
 // Open-Balance: Diagnostic Report Generator
 //
-// Runs all 16 checks → aggregates → produces DiagnosticReport.
+// Runs all checks → applies evidence rules → cross-validation
+// → aggregates → produces DiagnosticReport.
 // This is the main entry point for the diagnostic engine.
 // ============================================================
 
-import type { DiagnosticReport, Snapshot } from '../types'
+import type { DiagnosticReport, Snapshot, EngineContext } from '../types'
 import { ALL_CHECKS } from './checks'
 import {
   computeWeightedScore,
   checkCriticalFlag,
   applyCrossValidation,
+  applyEvidenceRules,
   determineGrade,
   dimensionScores,
 } from './aggregate'
 
-export function diagnose(snapshot: Snapshot): DiagnosticReport {
-  // Run all checks
-  let checks = ALL_CHECKS.map((fn) => fn(snapshot))
+export interface DiagnoseOptions {
+  /** 诊断基准日期（YYYY-MM-DD），默认今天。 */
+  referenceDate?: string
+}
 
-  // Cross-validation
+export function diagnose(
+  snapshot: Snapshot,
+  options?: DiagnoseOptions
+): DiagnosticReport {
+  const ctx: EngineContext = {
+    referenceDate:
+      options?.referenceDate ?? new Date().toISOString().slice(0, 10),
+  }
+
+  // Run all checks
+  let checks = ALL_CHECKS.map((fn) => fn(snapshot, ctx))
+
+  // Evidence rules: 经验法则类检查封顶"警告"，不得触发 fail
+  checks = applyEvidenceRules(checks)
+
+  // Qualitative × quantitative cross-validation
   const { checks: validatedChecks, overrides } = applyCrossValidation(checks)
   checks = validatedChecks
 

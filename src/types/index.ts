@@ -104,6 +104,7 @@ export interface Asset {
   annualIncome?: number // 年收益(租金/分红/利息/年金)
   expectedReturnPct?: number // 预期年化收益率(%)
   heldAt?: string // 持有机构 (未来API对接)
+  issuer?: string // 发行方/产品管理人（用于固收集中度计算，区别于持有机构）
   accountRef?: string // 账户标识 (未来API对接)
   purchaseDate?: string
   maturityDate?: string
@@ -162,6 +163,13 @@ export interface HouseholdProfile {
 export type CheckStatus = 'pass' | 'warn' | 'fail'
 export type CheckSeverity = 'critical' | 'high' | 'medium' | 'low'
 export type CheckLayer = 'qualitative' | 'quantitative'
+export type EvidenceLevel = 'heuristic' | 'research' | 'regulatory'
+
+export const EVIDENCE_LEVEL_LABELS: Record<EvidenceLevel, string> = {
+  heuristic: '经验法则',
+  research: '研究依据',
+  regulatory: '监管标准',
+}
 
 export const CHECK_STATUS_LABELS: Record<CheckStatus, string> = {
   pass: '通过',
@@ -182,6 +190,8 @@ export interface CheckResult {
   description: string
   layer: CheckLayer
   framework?: string // 框架依据
+  /** 证据等级：经验法则 / 研究依据 / 监管标准。经验法则类检查不触发 fail。 */
+  evidenceLevel: EvidenceLevel
   status: CheckStatus
   severity: CheckSeverity
   score: number // 0-100
@@ -190,6 +200,8 @@ export interface CheckResult {
   threshold: string // 通过/警告/未通过的阈值说明
   detail: string // 详细解释
   actionRefs: string[] // 关联的建议ID
+  /** 区间值（如退休储备的悲观~乐观区间），供报告展示 */
+  rangeValue?: { low: number; high: number }
 }
 
 // --- Diagnostic Report ---
@@ -269,6 +281,13 @@ export interface Snapshot {
   assets: Asset[]
   liabilities: Liability[]
   profile: HouseholdProfile
+}
+
+// --- Engine Context (per-diagnosis inputs) ---
+
+export interface EngineContext {
+  /** 诊断基准日期（YYYY-MM-DD）。默认今天；测试注入固定日期保证确定性。 */
+  referenceDate: string
 }
 
 // --- Risk Questionnaire ---
