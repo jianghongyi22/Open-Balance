@@ -265,8 +265,10 @@ export const SAMPLE_PROFILE: HouseholdProfile = {
   riskToleranceScore: 55, // 稳健型
   province: '江苏',
   retirementAge: 60,
+  monthlySocialPension: 6_000, // 预计退休后社保+年金月领额
   goals: {
     retirementReplacementRate: 0.7,
     educationFundYears: 11,
+    educationTier: 'domestic',
   },
 }

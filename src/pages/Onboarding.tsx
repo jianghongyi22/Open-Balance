@@ -31,6 +31,10 @@ export default function Onboarding() {
           incomeStability: values.incomeStability ?? 'stable',
           riskToleranceScore: 50,
           retirementAge: 60,
+          monthlySocialPension: values.monthlySocialPension,
+          goals: {
+            educationTier: values.educationTier,
+          },
         }
         setProfile(profile)
         setStep(1)
@@ -76,6 +80,21 @@ export default function Onboarding() {
         <Form.Item label="月度刚性支出" name="monthlyEssentialExpense" rules={[{ required: true, message: '请输入月支出' }]}
           extra="房贷/房租+伙食+交通+教育+基本生活">
           <InputNumber min={0} style={{ width: '100%' }} placeholder="¥" />
+        </Form.Item>
+        <Form.Item label="预计退休后社保/企业年金月领额" name="monthlySocialPension"
+          extra="选填。不填时按年收入的30%估算">
+          <InputNumber min={0} style={{ width: '100%' }} placeholder="¥/月" />
+        </Form.Item>
+        <Form.Item label="子女教育目标" name="educationTier"
+          extra="选填。设置后将纳入教育金检查（Q17）">
+          <Select
+            allowClear
+            placeholder="无教育目标"
+            options={[
+              { value: 'domestic', label: '国内本科（约40万/4年，现价）' },
+              { value: 'overseas', label: '海外本科（约160万/4年，现价）' },
+            ]}
+          />
         </Form.Item>
         <Form.Item label="收入稳定程度" name="incomeStability">
           <Select options={[

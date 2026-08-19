@@ -1,37 +1,59 @@
 import type { CheckResult, Snapshot } from '../../types'
-import { retirementSufficiency, oldestAge } from '../metrics'
-import { RETIREMENT_SUFFICIENCY_PASS, RETIREMENT_SUFFICIENCY_WARN } from '../../data/thresholds'
+import { retirementProjection, oldestAge } from '../metrics'
+import {
+  RETIREMENT_SUFFICIENCY_PASS,
+  RETIREMENT_SUFFICIENCY_WARN,
+  RETIREMENT_SCENARIOS,
+  RETIREMENT_LIFE_EXPECTANCY,
+} from '../../data/thresholds'
+import { formatCNY } from '../../utils/format'
 
 export function check08(snapshot: Snapshot): CheckResult {
-  const ratio = retirementSufficiency(snapshot)
+  const proj = retirementProjection(snapshot)
   const age = oldestAge(snapshot.profile)
   const retAge = snapshot.profile.retirementAge ?? 60
+
+  const ratio = proj.neutral.sufficiency
 
   let status: CheckResult['status']
   if (ratio >= RETIREMENT_SUFFICIENCY_PASS) status = 'pass'
   else if (ratio >= RETIREMENT_SUFFICIENCY_WARN) status = 'warn'
   else status = 'fail'
 
+  const pct = (r: number) => (r >= 99 ? '充足' : `${(r * 100).toFixed(0)}%`)
+  const gapText = proj.neutral.gapPV > 0
+    ? `缺口现值约 ${formatCNY(proj.neutral.gapPV)}`
+    : '无缺口'
+
   return {
     id: 'Q8',
     evidenceLevel: 'research',
     name: '养老储备测算',
-    description: `估算退休储备是否满足 ${retAge} 岁退休后至85岁的生活所需`,
+    description: `折现现金流（DCF）模型估算退休储备是否满足 ${retAge} 岁退休后至${RETIREMENT_LIFE_EXPECTANCY}岁的生活所需`,
     layer: 'qualitative',
-    framework: '养老金替代率模型',
+    framework: '养老金替代率模型 + DCF',
     status,
     severity: 'medium',
     score: status === 'pass' ? 100 : status === 'warn' ? 50 : 0,
     measuredValue: ratio,
-    measuredLabel: `储备充足率 ${(ratio * 100).toFixed(0)}%`,
-    threshold: `≥${(RETIREMENT_SUFFICIENCY_PASS * 100).toFixed(0)}%通过; ${(RETIREMENT_SUFFICIENCY_WARN * 100).toFixed(0)}-${(RETIREMENT_SUFFICIENCY_PASS * 100).toFixed(0)}%警告; <${(RETIREMENT_SUFFICIENCY_WARN * 100).toFixed(0)}%未通过`,
-    detail: `当前最大年龄${age}岁，距离退休${Math.max(0, retAge - age)}年。\n当前可计入退休储备的资产约为所需金额的 ${(ratio * 100).toFixed(0)}%（基于70%收入替代率，预期寿命85岁）。${
-      status === 'fail'
-        ? '\n退休储备严重不足，建议加大养老储蓄力度或考虑延迟退休。'
-        : status === 'warn'
-          ? '\n退休储备略有不足，建议逐步补充。'
-          : '\n退休储备相对充足。'
-    }`,
+    measuredLabel: `中性情景充足率 ${pct(ratio)}`,
+    threshold: `充足率≥${(RETIREMENT_SUFFICIENCY_PASS * 100).toFixed(0)}%通过; ${(RETIREMENT_SUFFICIENCY_WARN * 100).toFixed(0)}-${(RETIREMENT_SUFFICIENCY_PASS * 100).toFixed(0)}%警告; <${(RETIREMENT_SUFFICIENCY_WARN * 100).toFixed(0)}%未通过`,
+    detail: [
+      `最大年龄${age}岁，距离退休${proj.yearsToRetirement}年，退休期约${proj.retirementYears}年。`,
+      `三档情景充足率：`,
+      `  悲观（${RETIREMENT_SCENARIOS.pessimistic.label}）：${pct(proj.pessimistic.sufficiency)}`,
+      `  中性（${RETIREMENT_SCENARIOS.neutral.label}）：${pct(proj.neutral.sufficiency)}`,
+      `  乐观（${RETIREMENT_SCENARIOS.optimistic.label}）：${pct(proj.optimistic.sufficiency)}`,
+      `社保/年金年领取额：${formatCNY(proj.socialPensionAnnual)}（已从需求中扣除）`,
+      `可投资资产（已剔除自住房）：${formatCNY(proj.investableAssets)}`,
+      `中性情景：${gapText}`,
+      '',
+      '注：本模型为教育性估算，通胀与投资回报为假设值。',
+    ].join('\n'),
     actionRefs: ['A8-1'],
+    rangeValue: {
+      low: proj.pessimistic.sufficiency,
+      high: proj.optimistic.sufficiency,
+    },
   }
 }

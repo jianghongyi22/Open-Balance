@@ -152,9 +152,12 @@ export interface HouseholdProfile {
   riskToleranceScore: number // 0-100, from questionnaire
   province?: string
   retirementAge?: number // 默认 60
+  /** 预计退休后社保/企业年金月领取额。未填写时按年收入的固定比例估算。 */
+  monthlySocialPension?: number
   goals?: {
     retirementReplacementRate?: number // 默认 0.7
-    educationFundYears?: number
+    educationFundYears?: number // 距子女入学年数（默认按 18-子女年龄 推算）
+    educationTier?: 'domestic' | 'overseas' // 教育目标档位：国内/海外本科
   }
 }
 

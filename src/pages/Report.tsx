@@ -116,6 +116,18 @@ export default function Report() {
         <Descriptions.Item label="框架依据">{check.framework || '—'}</Descriptions.Item>
         <Descriptions.Item label="实测值">{check.measuredLabel}</Descriptions.Item>
         <Descriptions.Item label="阈值标准" span={2}>{check.threshold}</Descriptions.Item>
+        {check.rangeValue && (
+          <Descriptions.Item label="区间估计" span={2}>
+            {check.rangeValue.low >= 99
+              ? '充足'
+              : `${(check.rangeValue.low * 100).toFixed(0)}%`}
+            {' ~ '}
+            {check.rangeValue.high >= 99
+              ? '充足'
+              : `${(check.rangeValue.high * 100).toFixed(0)}%`}
+            （悲观 ~ 乐观情景）
+          </Descriptions.Item>
+        )}
       </Descriptions>
       <Collapse
         size="small"

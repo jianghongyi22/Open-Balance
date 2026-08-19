@@ -15,6 +15,13 @@ import {
 } from '../data/marketParams'
 import { ASSET_CATEGORY_ORDER } from '../types'
 import { parseDateToMs } from '../utils/dates'
+import {
+  RETIREMENT_REPLACEMENT_TARGET,
+  RETIREMENT_LIFE_EXPECTANCY,
+  SOCIAL_PENSION_DEFAULT_RATIO,
+  RETIREMENT_SCENARIOS,
+  EDUCATION_COST_TIERS,
+} from '../data/thresholds'
 
 // --- Basic totals ---
 
@@ -347,31 +354,178 @@ export function cashFlowCoverage(snapshot: Snapshot): number {
 
 // --- Retirement Projection (Q8) ---
 
-export function retirementSufficiency(snapshot: Snapshot): number {
+export interface RetirementScenarioResult {
+  /** 退休资金缺口现值（中性情景），0 表示无缺口 */
+  gapPV: number
+  /** 充足率 = 可投资资产现值 / 退休资金需求现值 */
+  sufficiency: number
+}
+
+export interface RetirementProjection {
+  neutral: RetirementScenarioResult
+  pessimistic: RetirementScenarioResult
+  optimistic: RetirementScenarioResult
+  /** 扣除社保/年金后的年净需求（退休首年，按退休时点币值） */
+  netAnnualNeed: number
+  /** 社保/企业年金年领取额 */
+  socialPensionAnnual: number
+  /** 可计入退休用途的资产现值（剔除自住房） */
+  investableAssets: number
+  yearsToRetirement: number
+  retirementYears: number
+}
+
+/**
+ * 折现现金流（DCF）退休测算：
+ * - 需求：年收入 × 替代率 − 社保/年金领取额，按通胀增长、按投资回报折现
+ * - 资产：总资产剔除自住房（自住房仅作居住用途，不产生退休现金流）
+ * - 三档情景：悲观 / 中性 / 乐观（通胀与回报假设见 thresholds）
+ */
+export function retirementProjection(snapshot: Snapshot): RetirementProjection {
   const profile = snapshot.profile
-  const replacementRate = profile.goals?.retirementReplacementRate ?? 0.7
+  const replacementRate = profile.goals?.retirementReplacementRate ?? RETIREMENT_REPLACEMENT_TARGET
   const retirementAge = profile.retirementAge ?? 60
   const age = oldestAge(profile)
   const yearsToRetirement = Math.max(0, retirementAge - age)
+  const retirementYears = Math.max(1, RETIREMENT_LIFE_EXPECTANCY - retirementAge)
 
-  // Estimated life expectancy: 85
-  const retirementYears = Math.max(0, 85 - retirementAge)
+  // 社保/年金：优先用家庭档案填写值，否则按收入比例估算
+  const socialPensionAnnual = profile.monthlySocialPension
+    ? profile.monthlySocialPension * 12
+    : profile.annualIncome * SOCIAL_PENSION_DEFAULT_RATIO
 
-  // Annual retirement need (in today's CNY)
+  // 退休首年的净需求（扣除社保后，按今天币值）
   const annualRetirementNeed = profile.annualIncome * replacementRate
+  const netAnnualNeedToday = Math.max(0, annualRetirementNeed - socialPensionAnnual)
 
-  // Total retirement fund needed (simple multiplication, no discounting for prototype)
-  const totalNeeded = annualRetirementNeed * retirementYears
+  // 可投资资产：剔除自住房（自住房不产生退休现金流）
+  const investableAssets = snapshot.assets
+    .filter(
+      (a) =>
+        !a.isPrimaryResidence &&
+        !(a.category === 'real_estate' && a.subCategory === '自住房')
+    )
+    .reduce((sum, a) => sum + a.marketValue, 0)
 
-  // Current retirement assets: pension-type savings + long-term investments
-  const retirementAssets =
-    categoryTotal(snapshot.assets, 'fixed_income') +
-    categoryTotal(snapshot.assets, 'equity') * 0.5 + // assume 50% for retirement
-    categoryTotal(snapshot.assets, 'insurance') * 1.0 + // savings insurance
-    categoryTotal(snapshot.assets, 'real_estate') * 0.3 // partial rental income
+  const computeScenario = (inflation: number, discount: number): RetirementScenarioResult => {
+    if (netAnnualNeedToday <= 0) {
+      // 社保已覆盖全部退休需求
+      return { gapPV: 0, sufficiency: 99 }
+    }
+    // 净增长率 g = (1+通胀)/(1+回报)：每一年退休现金流折到今天的因子
+    const g = (1 + inflation) / (1 + discount)
+    // 需求现值 = 年净需求 × g^距退休年数 × Σ_{t=0}^{退休年限-1} g^t
+    let annuitySum = 0
+    for (let t = 0; t < retirementYears; t++) {
+      annuitySum += Math.pow(g, t)
+    }
+    const needPV = netAnnualNeedToday * Math.pow(g, yearsToRetirement) * annuitySum
 
-  if (totalNeeded === 0) return 2.0 // very sufficient
-  return retirementAssets / totalNeeded
+    if (needPV <= 0) return { gapPV: 0, sufficiency: 99 }
+    return {
+      gapPV: Math.round(needPV - investableAssets),
+      sufficiency: investableAssets / needPV,
+    }
+  }
+
+  return {
+    neutral: computeScenario(
+      RETIREMENT_SCENARIOS.neutral.inflation,
+      RETIREMENT_SCENARIOS.neutral.discount
+    ),
+    pessimistic: computeScenario(
+      RETIREMENT_SCENARIOS.pessimistic.inflation,
+      RETIREMENT_SCENARIOS.pessimistic.discount
+    ),
+    optimistic: computeScenario(
+      RETIREMENT_SCENARIOS.optimistic.inflation,
+      RETIREMENT_SCENARIOS.optimistic.discount
+    ),
+    netAnnualNeed: Math.round(netAnnualNeedToday * Math.pow(1 + RETIREMENT_SCENARIOS.neutral.inflation, yearsToRetirement)),
+    socialPensionAnnual: Math.round(socialPensionAnnual),
+    investableAssets: Math.round(investableAssets),
+    yearsToRetirement,
+    retirementYears,
+  }
+}
+
+/** 兼容旧签名：返回中性情景充足率 */
+export function retirementSufficiency(snapshot: Snapshot): number {
+  return retirementProjection(snapshot).neutral.sufficiency
+}
+
+// --- Education Fund Projection (Q17) ---
+
+export interface EducationProjection {
+  /** 是否适用：无抚养对象或未设置教育目标时为 false */
+  applicable: boolean
+  /** 距入学年数 */
+  yearsUntilEnrollment: number
+  /** 目标档位 */
+  tier: 'domestic' | 'overseas' | null
+  /** 教育金需求现值（中性通胀/折现假设） */
+  needPV: number
+  /** 当前已定向的教育金资产（增额终身寿/年金险/名称含"教育"的资产） */
+  earmarkedAssets: number
+  /** 充足率 = earmarkedAssets / needPV */
+  sufficiency: number
+  /** 缺口现值 */
+  gapPV: number
+}
+
+const EDUCATION_DEFAULT_ENROLLMENT_AGE = 18
+
+export function educationProjection(snapshot: Snapshot): EducationProjection {
+  const profile = snapshot.profile
+  const tier = profile.goals?.educationTier ?? null
+
+  if (profile.dependentCount <= 0 || !tier) {
+    return {
+      applicable: false,
+      yearsUntilEnrollment: 0,
+      tier,
+      needPV: 0,
+      earmarkedAssets: 0,
+      sufficiency: 99,
+      gapPV: 0,
+    }
+  }
+
+  const maxDependentAge = Math.max(...profile.dependentAges, 0)
+  const yearsUntilEnrollment = Math.max(
+    1,
+    profile.goals?.educationFundYears ??
+      Math.max(0, EDUCATION_DEFAULT_ENROLLMENT_AGE - maxDependentAge)
+  )
+
+  // 与退休模型共用中性假设：通胀 2% / 折现 3%
+  const { inflation, discount } = RETIREMENT_SCENARIOS.neutral
+  const tierCost = EDUCATION_COST_TIERS[tier].totalCost
+  // 入学时点成本按通胀增长，再折回今天
+  const needPV = tierCost * Math.pow((1 + inflation) / (1 + discount), yearsUntilEnrollment)
+
+  // 已定向教育金：储蓄型保险（增额终身寿/年金险）+ 名称含"教育"的资产
+  const earmarkedAssets = snapshot.assets
+    .filter(
+      (a) =>
+        (a.category === 'insurance' &&
+          (a.subCategory === '增额终身寿' || a.subCategory === '年金险')) ||
+        a.name.includes('教育')
+    )
+    .reduce((sum, a) => sum + a.marketValue, 0)
+
+  const sufficiency = needPV > 0 ? earmarkedAssets / needPV : 99
+  const gapPV = Math.round(Math.max(0, needPV - earmarkedAssets))
+
+  return {
+    applicable: true,
+    yearsUntilEnrollment,
+    tier,
+    needPV: Math.round(needPV),
+    earmarkedAssets: Math.round(earmarkedAssets),
+    sufficiency,
+    gapPV,
+  }
 }
 
 // --- Maturity Ladder Check (Q12) ---

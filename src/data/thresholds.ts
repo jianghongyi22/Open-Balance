@@ -78,6 +78,33 @@ export const RETIREMENT_REPLACEMENT_TARGET = 0.70 // 70%
 export const RETIREMENT_SUFFICIENCY_PASS = 1.10 // 110% of needed
 export const RETIREMENT_SUFFICIENCY_WARN = 0.80 // 80-110%
 
+// --- Retirement DCF Model (Q8) ---
+export const RETIREMENT_LIFE_EXPECTANCY = 85
+/** 未填写社保月领额时的默认替代估算：年收入的 30% */
+export const SOCIAL_PENSION_DEFAULT_RATIO = 0.30
+
+// 三档情景假设（年化）：通胀率与长期投资回报率
+export const RETIREMENT_SCENARIOS: Record<
+  'pessimistic' | 'neutral' | 'optimistic',
+  { inflation: number; discount: number; label: string }
+> = {
+  pessimistic: { inflation: 0.03, discount: 0.02, label: '悲观（通胀3%/回报2%）' },
+  neutral: { inflation: 0.02, discount: 0.03, label: '中性（通胀2%/回报3%）' },
+  optimistic: { inflation: 0.015, discount: 0.04, label: '乐观（通胀1.5%/回报4%）' },
+}
+
+// --- Education Fund (Q17) ---
+/** 教育成本档位：2026 年现价（4 年学费+生活费合计） */
+export const EDUCATION_COST_TIERS: Record<
+  'domestic' | 'overseas',
+  { label: string; totalCost: number }
+> = {
+  domestic: { label: '国内本科', totalCost: 400_000 },
+  overseas: { label: '海外本科', totalCost: 1_600_000 },
+}
+export const EDUCATION_SUFFICIENCY_PASS = 1.0
+export const EDUCATION_SUFFICIENCY_WARN = 0.8
+
 // --- Cash Drag (Q15) ---
 export const CASH_DRAG_PASS = 0.10
 export const CASH_DRAG_WARN = 0.20
