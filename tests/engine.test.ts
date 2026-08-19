@@ -3,6 +3,7 @@ import { diagnose } from '../src/engine/report'
 import {
   netWorth, emergencyMonths, debtToIncome, hhi,
   hasMaturityGap, maturingValueWithinYear, maxWMPIssuerShare,
+  retirementProjection,
 } from '../src/engine/metrics'
 import { SAMPLE_ASSETS, SAMPLE_LIABILITIES, SAMPLE_PROFILE } from '../src/data/sampleData'
 import type { Snapshot, Asset, Liability, HouseholdProfile } from '../src/types'
@@ -40,7 +41,7 @@ describe('Diagnostic Engine', () => {
     expect(report.overallScore).toBeGreaterThanOrEqual(0)
     expect(report.overallScore).toBeLessThanOrEqual(100)
     expect(['A', 'B', 'C', 'D']).toContain(report.grade)
-    expect(report.checks).toHaveLength(16)
+    expect(report.checks).toHaveLength(17)
   })
 
   it('should grade D for severely unbalanced portfolio', () => {
@@ -135,13 +136,13 @@ describe('Diagnostic Engine', () => {
     expect(q3?.status).toBe('pass')
   })
 
-  it('should run all 16 checks', () => {
+  it('should run all 17 checks', () => {
     const snapshot = makeSnapshot()
     const report = diagnose(snapshot)
     const ids = report.checks.map((c) => c.id)
     expect(ids).toContain('Q1')
     expect(ids).toContain('Q16')
-    expect(report.checks).toHaveLength(16)
+    expect(report.checks).toHaveLength(17)
   })
 
   it('should produce deterministic results', () => {
@@ -164,7 +165,7 @@ describe('Diagnostic Engine', () => {
       profile: SAMPLE_PROFILE,
     }
     const report = diagnose(snapshot)
-    expect(report.checks).toHaveLength(16)
+    expect(report.checks).toHaveLength(17)
     expect(report.overallScore).toBeGreaterThanOrEqual(0)
     expect(report.overallScore).toBeLessThanOrEqual(100)
     // Sample data should have some failing checks (real estate heavy + mortgage)
@@ -348,5 +349,123 @@ describe('证据分级 (Issue #4)', () => {
     const report = diagnose(makeSnapshot())
     expect(report.checks.find((c) => c.id === 'Q5')!.evidenceLevel).toBe('regulatory')
     expect(report.checks.find((c) => c.id === 'Q7')!.evidenceLevel).toBe('regulatory')
+  })
+})
+
+// ============================================================
+// Issue #3: 退休测算 DCF 重构
+// ============================================================
+
+describe('退休测算 DCF (Issue #3)', () => {
+
+  const baseProfile = {
+    memberAges: [40],
+    annualIncome: 200_000,
+    monthlyEssentialExpense: 10_000,
+    incomeStability: 'stable' as const,
+    riskToleranceScore: 50,
+  }
+
+  it('社保领取额应从退休需求中扣除（有社保 vs 无社保）', () => {
+    const assets = [
+      { id: 'a1', name: '理财', category: 'fixed_income' as const, subCategory: '银行理财', marketValue: 1_000_000, currency: 'CNY' as const, liquidity: 'medium' as const, riskLevel: 'low' as const },
+    ]
+    const withPension = retirementProjection(makeSnapshot({ assets, profile: { ...baseProfile, monthlySocialPension: 8_000 } }))
+    const withoutPension = retirementProjection(makeSnapshot({ assets, profile: { ...baseProfile } }))
+
+    // 有社保时需求更小 → 充足率更高
+    expect(withPension.neutral.sufficiency).toBeGreaterThan(withoutPension.neutral.sufficiency)
+    expect(withPension.socialPensionAnnual).toBe(96_000)
+    // 无社保时按收入 30% 默认估算
+    expect(withoutPension.socialPensionAnnual).toBe(60_000) // 200k * 30%
+  })
+
+  it('自住房应剔除出退休资产（仅作居住用途）', () => {
+    const houseOnly = makeSnapshot({
+      assets: [
+        { id: 'h1', name: '自住房', category: 'real_estate' as const, subCategory: '自住房', marketValue: 5_000_000, currency: 'CNY' as const, liquidity: 'low' as const, riskLevel: 'medium' as const, isPrimaryResidence: true },
+      ],
+      profile: baseProfile,
+    })
+    const proj = retirementProjection(houseOnly)
+    expect(proj.investableAssets).toBe(0)
+    expect(proj.neutral.sufficiency).toBe(0)
+  })
+
+  it('三档情景充足率：悲观 < 中性 < 乐观', () => {
+    const snapshot = makeSnapshot({
+      assets: [
+        { id: 'a1', name: '理财', category: 'fixed_income' as const, subCategory: '银行理财', marketValue: 1_000_000, currency: 'CNY' as const, liquidity: 'medium' as const, riskLevel: 'low' as const },
+      ],
+      profile: baseProfile,
+    })
+    const proj = retirementProjection(snapshot)
+    expect(proj.pessimistic.sufficiency).toBeLessThan(proj.neutral.sufficiency)
+    expect(proj.neutral.sufficiency).toBeLessThan(proj.optimistic.sufficiency)
+  })
+
+  it('Q8 报告应包含区间值（悲观~乐观）', () => {
+    const snapshot = makeSnapshot({
+      assets: [
+        { id: 'a1', name: '理财', category: 'fixed_income' as const, subCategory: '银行理财', marketValue: 1_000_000, currency: 'CNY' as const, liquidity: 'medium' as const, riskLevel: 'low' as const },
+      ],
+      profile: baseProfile,
+    })
+    const report = diagnose(snapshot)
+    const q8 = report.checks.find((c) => c.id === 'Q8')!
+    expect(q8.rangeValue).toBeDefined()
+    expect(q8.rangeValue!.low).toBeLessThanOrEqual(q8.rangeValue!.high)
+    expect(q8.detail).toContain('悲观')
+    expect(q8.detail).toContain('社保/年金年领取额')
+  })
+})
+
+// ============================================================
+// Issue #5: 教育金检查 Q17
+// ============================================================
+
+describe('教育金储备 (Issue #5)', () => {
+  it('无抚养对象或未设置教育目标 → Q17 通过且标记不适用', () => {
+    const report = diagnose(makeSnapshot({ profile: { dependentCount: 0 } }))
+    const q17 = report.checks.find((c) => c.id === 'Q17')!
+    expect(q17).toBeDefined()
+    expect(q17.status).toBe('pass')
+    expect(q17.measuredLabel).toBe('不适用')
+  })
+
+  it('有教育目标但无储备 → Q17 未通过', () => {
+    const snapshot = makeSnapshot({
+      profile: {
+        dependentCount: 1,
+        dependentAges: [7],
+        goals: { educationTier: 'domestic', educationFundYears: 11 },
+      },
+    })
+    const report = diagnose(snapshot)
+    const q17 = report.checks.find((c) => c.id === 'Q17')!
+    expect(q17.status).toBe('fail')
+    expect(q17.detail).toContain('国内本科')
+  })
+
+  it('教育金资产充足 → Q17 通过', () => {
+    const snapshot = makeSnapshot({
+      assets: [
+        { id: 'e1', name: '教育金增额终身寿', category: 'insurance', subCategory: '增额终身寿', marketValue: 500_000, currency: 'CNY', liquidity: 'low', riskLevel: 'low' },
+      ],
+      profile: {
+        dependentCount: 1,
+        dependentAges: [7],
+        goals: { educationTier: 'domestic', educationFundYears: 5 },
+      },
+    })
+    const report = diagnose(snapshot)
+    const q17 = report.checks.find((c) => c.id === 'Q17')!
+    // 距入学5年，需求现值 ≈ 400k * (1.02/1.03)^5 ≈ 380k < 500k → 通过
+    expect(q17.status).toBe('pass')
+  })
+
+  it('17 项检查全部注册并参与评分', () => {
+    const report = diagnose(makeSnapshot())
+    expect(report.checks.map((c) => c.id)).toContain('Q17')
   })
 })

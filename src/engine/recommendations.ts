@@ -205,6 +205,19 @@ const RECOMMENDATION_MAP: Record<string, Omit<Recommendation, 'id' | 'checkRef'>
       '关注股息率较高的红利类ETF或REITs产品',
     ],
   },
+  Q17: {
+    title: '建立教育金储备计划',
+    description: '当前教育金储备不足，难以覆盖子女高等教育目标。',
+    urgency: 'this_month',
+    effort: '1-2小时',
+    expectedEffect: '子女教育资金有保障，避免未来临时举债',
+    steps: [
+      '确认教育目标档位（国内/海外本科）与距入学年数',
+      '测算目标金额现值与当前缺口',
+      '选择储蓄型保险或教育定投计划，按月定额投入',
+      '教育金单独账户管理，不与其他资金混用',
+    ],
+  },
 }
 
 // --- Generate recommendations from check results ---
