@@ -9,6 +9,41 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Asset, AssetCategory } from '../types'
 import type { RawTransaction, InstitutionInfo } from './types'
 
+// --- Issuer recognition (发行方) ---
+
+/** 常见理财产品发行方/管理人名称表 */
+const KNOWN_ISSUERS = [
+  '招银理财', '兴银理财', '中银理财', '工银理财', '建信理财', '农银理财',
+  '光大理财', '华夏理财', '平安理财', '中邮理财', '交银理财', '信银理财',
+  '易方达', '华夏基金', '天弘基金', '汇添富', '南方基金', '嘉实基金',
+  '博时基金', '广发基金', '招商基金', '富国基金', '中欧基金', '景顺长城',
+  '交银施罗德', '银华基金', '鹏华基金', '国泰基金', '华安基金', '兴全基金',
+  '国寿养老', '平安养老', '泰康资产', '太平洋保险',
+]
+
+// 通用发行方命名模式：XX理财 / XX基金 / XX证券 / XX信托 / XX资产
+const ISSUER_PATTERN = /([一-龥]{2,8}(?:理财|基金|证券|信托|资产|银行))/g
+
+/**
+ * 从产品名称/描述中识别发行方（区别于持有机构 heldAt）。
+ * 命中已知发行方名表或通用命名模式。
+ */
+export function extractIssuer(...texts: (string | undefined)[]): string | undefined {
+  const combined = texts.filter(Boolean).join(' ')
+  if (!combined) return undefined
+
+  // 1) 已知发行方名表优先
+  for (const issuer of KNOWN_ISSUERS) {
+    if (combined.includes(issuer)) return issuer
+  }
+
+  // 2) 通用命名模式
+  const matches = combined.match(ISSUER_PATTERN)
+  if (matches && matches.length > 0) return matches[0]
+
+  return undefined
+}
+
 // --- Known institution → asset classification ---
 
 const INSTITUTION_MAP: Record<string, InstitutionInfo> = {
@@ -179,6 +214,12 @@ export function transactionsToAssets(
     const sampleDesc = group.transactions.slice(0, 3).map((t) => t.description).filter(Boolean)
     const name = instInfo?.name ?? `${sampleDesc[0] ?? source}（自动识别）`
 
+    // 固收类资产尝试从交易描述中识别发行方（区别于持有机构）
+    let issuer: string | undefined
+    if (category === 'fixed_income') {
+      issuer = extractIssuer(...group.transactions.map((t) => `${t.description} ${t.counterparty} ${t.originalCategory}`))
+    }
+
     assets.push({
       id: uuidv4(),
       name,
@@ -189,6 +230,7 @@ export function transactionsToAssets(
       liquidity: instInfo?.liquidity ?? (category === 'cash_deposit' ? 'high' : 'medium'),
       riskLevel: instInfo?.riskLevel ?? (category === 'equity' ? 'high' : category === 'real_estate' ? 'medium' : 'low'),
       heldAt: source,
+      issuer,
       notes: `从${group.transactions.length}笔交易自动聚合\n示例: ${sampleDesc.slice(0, 3).join('; ')}`,
     })
   }

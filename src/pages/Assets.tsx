@@ -248,6 +248,12 @@ export default function Assets() {
           <Form.Item name="heldAt" label="持有机构">
             <Input placeholder="银行/券商/保险公司名" />
           </Form.Item>
+          {selectedCategory === 'fixed_income' && (
+            <Form.Item name="issuer" label="发行方/产品管理人"
+              extra="用于固收集中度计算，与持有机构分开填写（如：招银理财）">
+              <Input placeholder="如：招银理财、易方达基金" />
+            </Form.Item>
+          )}
           {selectedCategory === 'insurance' && (
             <>
               <Row gutter={16}>
