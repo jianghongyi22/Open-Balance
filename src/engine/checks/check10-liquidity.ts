@@ -13,6 +13,7 @@ export function check10(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q10',
+    evidenceLevel: 'research',
     name: '流动性风险评估',
     description: '检查高流动性资产占比是否充足，评估变现能力',
     layer: 'quantitative',

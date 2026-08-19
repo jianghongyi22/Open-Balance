@@ -28,6 +28,7 @@ export function check09(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q9',
+    evidenceLevel: 'research',
     name: '集中度风险评估',
     description: '通过HHI指数、房地产占比、单只持仓占比综合评估资产集中度',
     layer: 'quantitative',

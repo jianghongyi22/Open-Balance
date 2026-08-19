@@ -28,6 +28,7 @@ export function check13(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q13',
+    evidenceLevel: 'research',
     name: '组合风险量化指标',
     description: '计算组合波动率、夏普比率、VaR和最大回撤，综合评估风险收益特征',
     layer: 'quantitative',

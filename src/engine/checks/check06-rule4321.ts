@@ -24,6 +24,7 @@ export function check06(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q6',
+    evidenceLevel: 'heuristic',
     name: '4321法则检查',
     description: '按4321法则检查家庭收入分配：40%生活/30%投资/20%储蓄/10%保险',
     layer: 'qualitative',

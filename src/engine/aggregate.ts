@@ -1,7 +1,8 @@
 // ============================================================
 // Open-Balance: Score Aggregation
 //
-// Combines 16 check results into an overall score with:
+// Combines 17 check results into an overall score with:
+// - Evidence rules (经验法则检查不触发 fail)
 // - Weighted scoring
 // - 一票警告 (critical check cap)
 // - Qualitative vs quantitative cross-validation
@@ -13,6 +14,26 @@ import {
   CRITICAL_CHECKS,
   GRADE_BANDS,
 } from '../data/thresholds'
+
+// --- Evidence Rules ---
+
+/**
+ * 经验法则类检查（heuristic）只能提示，不能否决：
+ * fail 一律降级为 warn（50 分）。
+ */
+export function applyEvidenceRules(checks: CheckResult[]): CheckResult[] {
+  return checks.map((c) => {
+    if (c.evidenceLevel === 'heuristic' && c.status === 'fail') {
+      return {
+        ...c,
+        status: 'warn',
+        score: 50,
+        detail: `${c.detail}\n（该检查为经验法则，仅作参考提示，不判为未通过）`,
+      }
+    }
+    return c
+  })
+}
 
 // --- Weighted Score ---
 

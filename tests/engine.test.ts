@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { diagnose } from '../src/engine/report'
 import {
   netWorth, emergencyMonths, debtToIncome, hhi,
+  hasMaturityGap, maturingValueWithinYear, maxWMPIssuerShare,
 } from '../src/engine/metrics'
 import { SAMPLE_ASSETS, SAMPLE_LIABILITIES, SAMPLE_PROFILE } from '../src/data/sampleData'
 import type { Snapshot, Asset, Liability, HouseholdProfile } from '../src/types'
@@ -217,5 +218,135 @@ describe('Metrics', () => {
     // 500k/2M = 0.25, 300k/2M = 0.15, 1.2M/2M = 0.6
     // HHI = 0.25^2 + 0.15^2 + 0.6^2 = 0.0625 + 0.0225 + 0.36 = 0.445
     expect(result).toBeCloseTo(0.445, 2)
+  })
+})
+
+// ============================================================
+// Issue #2: 期限错配检查按真实日期判断
+// ============================================================
+
+describe('期限错配检查 (Issue #2)', () => {
+  const REF = '2026-08-19'
+
+  const makeDeposit = (marketValue: number, maturityDate?: string): Asset => ({
+    id: 'd1', name: '银行理财A', category: 'fixed_income', subCategory: '银行理财',
+    marketValue, currency: 'CNY', liquidity: 'medium', riskLevel: 'low',
+    issuer: '招银理财', maturityDate,
+  })
+
+  it('12个月内到期资产足够覆盖50%年支出 → 无缺口', () => {
+    const snapshot = makeSnapshot({
+      assets: [
+        makeDeposit(100_000, '2026-12-01'), // 3.5个月后到期
+        makeDeposit(200_000, '2028-01-01'), // 超出12个月，不计入
+      ],
+      profile: { monthlyEssentialExpense: 10_000 }, // yearNeed = 120k, 50% = 60k
+    })
+    expect(hasMaturityGap(snapshot, REF)).toBe(false)
+  })
+
+  it('所有到期资产都在12个月外 → 存在缺口', () => {
+    const snapshot = makeSnapshot({
+      assets: [makeDeposit(100_000, '2027-10-01')], // 13.5个月后
+      profile: { monthlyEssentialExpense: 10_000 },
+    })
+    expect(hasMaturityGap(snapshot, REF)).toBe(true)
+  })
+
+  it('无到期日期的资产不计入到期金额', () => {
+    const snapshot = makeSnapshot({
+      assets: [makeDeposit(100_000)], // 无日期
+      profile: { monthlyEssentialExpense: 10_000 },
+    })
+    expect(maturingValueWithinYear(snapshot, REF)).toBe(0)
+    expect(hasMaturityGap(snapshot, REF)).toBe(true)
+  })
+
+  it('Q12 通过 referenceDate 注入基准日期（诊断结果确定）', () => {
+    const snapshot = makeSnapshot({
+      assets: [makeDeposit(100_000, '2026-12-01')],
+      profile: { monthlyEssentialExpense: 10_000 },
+    })
+    const report = diagnose(snapshot, { referenceDate: REF })
+    const q12 = report.checks.find((c) => c.id === 'Q12')!
+    expect(q12.status).not.toBe('warn') // 期限匹配通过；发行方覆盖率 100%
+  })
+})
+
+// ============================================================
+// Issue #1: 单一发行方集中度按 issuer 计算
+// ============================================================
+
+describe('发行方集中度 (Issue #1)', () => {
+
+  const makeWMP = (marketValue: number, issuer: string | undefined, heldAt: string): Asset => ({
+    id: `w${Math.random().toString(36).slice(2, 8)}`, name: `${issuer ?? '未知'}理财`,
+    category: 'fixed_income', subCategory: '银行理财', marketValue,
+    currency: 'CNY', liquidity: 'medium', riskLevel: 'low', issuer, heldAt,
+  })
+
+  it('同一银行不同发行方应分开计算', () => {
+    const assets = [
+      makeWMP(400_000, '招银理财', '招商银行'),
+      makeWMP(200_000, '兴银理财', '招商银行'),
+    ]
+    const { maxShare, coverage, topIssuer } = maxWMPIssuerShare(assets)
+    expect(maxShare).toBeCloseTo(400_000 / 600_000, 4) // 66.7% 而非按 heldAt 的 100%
+    expect(coverage).toBe(1)
+    expect(topIssuer).toBe('招银理财')
+  })
+
+  it('跨银行同一发行方应合并计算', () => {
+    const assets = [
+      makeWMP(200_000, '招银理财', '招商银行'),
+      makeWMP(100_000, '招银理财', '兴业银行'),
+      makeWMP(300_000, '兴银理财', '招商银行'),
+    ]
+    const { maxShare, topIssuer } = maxWMPIssuerShare(assets)
+    expect(maxShare).toBeCloseTo(300_000 / 600_000, 4) // 招银理财 30万 / 60万
+    expect(topIssuer).toBe('招银理财')
+  })
+
+  it('未标注发行方时覆盖率应小于1', () => {
+    const assets = [
+      makeWMP(300_000, '招银理财', '招商银行'),
+      makeWMP(100_000, undefined, '招商银行'),
+    ]
+    const { coverage } = maxWMPIssuerShare(assets)
+    expect(coverage).toBeCloseTo(300_000 / 400_000, 4)
+  })
+})
+
+// ============================================================
+// Issue #4: 证据分级
+// ============================================================
+
+describe('证据分级 (Issue #4)', () => {
+  it('全部检查均有 evidenceLevel 标注', () => {
+    const report = diagnose(makeSnapshot())
+    for (const check of report.checks) {
+      expect(['heuristic', 'research', 'regulatory']).toContain(check.evidenceLevel)
+    }
+  })
+
+  it('经验法则类检查（Q1/Q6）触发 fail 时降级为 warn', () => {
+    // 全部资产为房产 → 短期账户为 0% → Q1 原本应 fail
+    const snapshot = makeSnapshot({
+      assets: [
+        { id: '1', name: '自住房', category: 'real_estate', subCategory: '自住房', marketValue: 5_000_000, currency: 'CNY', liquidity: 'low', riskLevel: 'medium' },
+      ],
+    })
+    const report = diagnose(snapshot)
+    const q1 = report.checks.find((c) => c.id === 'Q1')!
+    const q6 = report.checks.find((c) => c.id === 'Q6')!
+    expect(q1.evidenceLevel).toBe('heuristic')
+    expect(q1.status).toBe('warn') // 而非 fail
+    expect(q6.evidenceLevel).toBe('heuristic')
+  })
+
+  it('监管标准检查（Q5/Q7）不受证据规则影响', () => {
+    const report = diagnose(makeSnapshot())
+    expect(report.checks.find((c) => c.id === 'Q5')!.evidenceLevel).toBe('regulatory')
+    expect(report.checks.find((c) => c.id === 'Q7')!.evidenceLevel).toBe('regulatory')
   })
 })

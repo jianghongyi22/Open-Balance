@@ -12,6 +12,7 @@ export function check11(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q11',
+    evidenceLevel: 'research',
     name: '汇率风险评估',
     description: '检查非人民币计价资产占金融资产的比例',
     layer: 'quantitative',

@@ -15,6 +15,7 @@ export function check02(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q2',
+    evidenceLevel: 'research',
     name: '生命周期适配度',
     description: '检查当前权益/成长类资产比例是否符合年龄对应的风险承受能力',
     layer: 'qualitative',

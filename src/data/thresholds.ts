@@ -125,9 +125,12 @@ export const LARGE_POSITION_THRESHOLD = 0.15 // > 15% of financial assets
 export const SINGLE_ISSUER_WMP_MAX = 0.5 // no single WMP > 50% of 固收
 
 // --- Check Weights (sum ~ 100) ---
+// 经验法则类检查（Q1 标准普尔四象限、Q6 4321法则）降权：
+// 民间流传的配置比例缺乏研究依据，不应与有据可依的模型等权。
 export const CHECK_WEIGHTS: Record<string, number> = {
-  Q1: 10, Q2: 6, Q3: 12, Q4: 12, Q5: 12, Q6: 4, Q7: 12, Q8: 6,
+  Q1: 4, Q2: 6, Q3: 12, Q4: 12, Q5: 12, Q6: 1, Q7: 12, Q8: 6,
   Q9: 8, Q10: 5, Q11: 3, Q12: 4, Q13: 3, Q14: 1, Q15: 1, Q16: 1,
+  Q17: 5,
 }
 
 // --- Critical Checks (一票警告) ---

@@ -19,6 +19,7 @@ export function check05(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q5',
+    evidenceLevel: 'regulatory',
     name: '负债压力测试',
     description: '检查月供收入比(DSR/DTI)和总负债率是否在安全线以内',
     layer: 'qualitative',

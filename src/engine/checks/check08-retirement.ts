@@ -14,6 +14,7 @@ export function check08(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q8',
+    evidenceLevel: 'research',
     name: '养老储备测算',
     description: `估算退休储备是否满足 ${retAge} 岁退休后至85岁的生活所需`,
     layer: 'qualitative',

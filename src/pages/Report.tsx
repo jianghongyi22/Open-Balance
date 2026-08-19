@@ -7,7 +7,7 @@ import {
 import ReactECharts from 'echarts-for-react'
 import { useStore } from '../store'
 import { diagnose } from '../engine'
-import { CHECK_SEVERITY_LABELS, CHECK_STATUS_LABELS, GRADE_LABELS } from '../types'
+import { CHECK_SEVERITY_LABELS, CHECK_STATUS_LABELS, EVIDENCE_LEVEL_LABELS } from '../types'
 import type { CheckResult, CheckStatus } from '../types'
 import { netWorth } from '../engine/metrics'
 import { formatCNY } from '../utils/format'
@@ -98,6 +98,9 @@ export default function Report() {
           </Tag>
           <Tag color={check.status === 'pass' ? 'green' : check.status === 'warn' ? 'gold' : 'red'}>
             {CHECK_STATUS_LABELS[check.status]}
+          </Tag>
+          <Tag color={check.evidenceLevel === 'regulatory' ? 'purple' : check.evidenceLevel === 'research' ? 'cyan' : 'default'}>
+            {EVIDENCE_LEVEL_LABELS[check.evidenceLevel]}
           </Tag>
           {report.criticalChecks.includes(check.id) && (
             <Tag color="red">一票警告</Tag>

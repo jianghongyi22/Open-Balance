@@ -12,6 +12,7 @@ export function check16(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q16',
+    evidenceLevel: 'research',
     name: '被动现金流覆盖',
     description: '检查租金、分红、利息等被动收入能否覆盖月度刚性支出',
     layer: 'quantitative',

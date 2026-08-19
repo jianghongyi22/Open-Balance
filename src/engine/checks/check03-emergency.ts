@@ -12,6 +12,7 @@ export function check03(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q3',
+    evidenceLevel: 'research',
     name: '应急备用金充足性',
     description: '检查高流动性资产能否覆盖3-6个月家庭刚性支出',
     layer: 'qualitative',

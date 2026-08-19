@@ -13,6 +13,7 @@ export function check14(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q14',
+    evidenceLevel: 'research',
     name: '相关性分析',
     description: '检查是否存在高度相关的大类资产同涨同跌——虚假分散化',
     layer: 'quantitative',

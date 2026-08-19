@@ -42,6 +42,7 @@ export function check04(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q4',
+    evidenceLevel: 'research',
     name: '家庭保障充分性',
     description: '检查寿险、重疾、医疗、意外四大保障是否覆盖家庭风险敞口',
     layer: 'qualitative',

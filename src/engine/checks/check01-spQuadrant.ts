@@ -29,6 +29,7 @@ export function check01(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q1',
+    evidenceLevel: 'heuristic',
     name: '标准普尔四象限检查',
     description: '按标准普尔家庭资产象限图，检查四大账户配置比例是否合理',
     layer: 'qualitative',

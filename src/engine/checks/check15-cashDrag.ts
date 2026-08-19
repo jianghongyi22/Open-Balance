@@ -12,6 +12,7 @@ export function check15(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q15',
+    evidenceLevel: 'research',
     name: '资金效率（现金拖累）',
     description: '检查活期存款等低效资金占比，识别闲置资金',
     layer: 'quantitative',

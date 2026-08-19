@@ -30,6 +30,7 @@ export function check07(snapshot: Snapshot): CheckResult {
 
   return {
     id: 'Q7',
+    evidenceLevel: 'regulatory',
     name: '风险偏好匹配',
     description: '检查投资组合的实际风险水平是否与风险测评结果匹配',
     layer: 'qualitative',
