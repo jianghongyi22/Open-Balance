@@ -10,7 +10,7 @@ import {
   ASSET_CATEGORY_LABELS, ASSET_CATEGORY_ORDER, SUB_CATEGORY_OPTIONS,
   LIQUIDITY_LABELS, RISK_LEVEL_LABELS, CURRENCY_LABELS,
 } from '../types'
-import type { Asset, AssetCategory, Liquidity, RiskLevel, Currency } from '../types'
+import type { Asset, AssetCategory, Liquidity, RiskLevel, Currency, Liability, LiabilityType } from '../types'
 import { CATEGORY_COLORS } from '../data/marketParams'
 import { categoryBreakdown, totalAssets, totalLiabilities, netWorth } from '../engine/metrics'
 import { formatCNY } from '../utils/format'
@@ -23,6 +23,11 @@ export default function Assets() {
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<AssetCategory>('cash_deposit')
   const [form] = Form.useForm()
+
+  // --- 负债表单状态（独立于资产表单） ---
+  const [liabilityModalOpen, setLiabilityModalOpen] = useState(false)
+  const [editingLiability, setEditingLiability] = useState<Liability | null>(null)
+  const [liabilityForm] = Form.useForm()
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: useStore.getState().profile! }), [assets, liabilities])
   const breakdown = useMemo(() => categoryBreakdown(assets), [assets])
@@ -79,6 +84,32 @@ export default function Assets() {
     form.resetFields()
   }
 
+  // --- 负债操作 ---
+
+  const openLiabilityCreate = () => {
+    setEditingLiability(null)
+    liabilityForm.resetFields()
+    liabilityForm.setFieldsValue({ type: '房贷' })
+    setLiabilityModalOpen(true)
+  }
+
+  const openLiabilityEdit = (liability: Liability) => {
+    setEditingLiability(liability)
+    liabilityForm.setFieldsValue(liability)
+    setLiabilityModalOpen(true)
+  }
+
+  const handleSaveLiability = async () => {
+    const values = await liabilityForm.validateFields()
+    if (editingLiability) {
+      updateLiability(editingLiability.id, values)
+    } else {
+      addLiability(values)
+    }
+    setLiabilityModalOpen(false)
+    liabilityForm.resetFields()
+  }
+
   const columns = [
     { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
     { title: '分类', dataIndex: 'category', key: 'category', width: 100, render: (c: AssetCategory) => ASSET_CATEGORY_LABELS[c] },
@@ -130,10 +161,13 @@ export default function Assets() {
     },
     {
       title: '操作', key: 'action', width: 100,
-      render: (_: unknown, record: typeof liabilities[0]) => (
-        <Popconfirm title="确认删除？" onConfirm={() => removeLiability(record.id)}>
-          <Button size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
+      render: (_: unknown, record: Liability) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openLiabilityEdit(record)} />
+          <Popconfirm title="确认删除？" onConfirm={() => removeLiability(record.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
       ),
     },
   ]
@@ -178,13 +212,7 @@ export default function Assets() {
             <Col span={8}><Card size="small"><Statistic title="月供合计" value={formatCNY(liabilities.reduce((s, l) => s + l.monthlyPayment, 0))} /></Card></Col>
             <Col span={8}><Card size="small"><Statistic title="负债项数" value={liabilities.length} suffix="项" /></Card></Col>
           </Row>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => {
-            // Simple liability add via modal
-            Modal.confirm({
-              title: '添加负债',
-              content: '请使用数据导入或后续版本添加负债', // Simplified for prototype
-            })
-          }} style={{ marginBottom: 16 }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openLiabilityCreate} style={{ marginBottom: 16 }}>
             添加负债
           </Button>
           <Table dataSource={liabilities} columns={liabilityColumns} rowKey="id" size="small" pagination={{ pageSize: 20 }} />
@@ -270,6 +298,64 @@ export default function Assets() {
               </Row>
             </>
           )}
+          <Form.Item name="notes" label="备注">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Liability Form Modal */}
+      <Modal
+        title={editingLiability ? '编辑负债' : '添加负债'}
+        open={liabilityModalOpen}
+        onOk={handleSaveLiability}
+        onCancel={() => { setLiabilityModalOpen(false); liabilityForm.resetFields() }}
+        width={600}
+        destroyOnClose
+      >
+        <Form form={liabilityForm} layout="vertical">
+          <Form.Item name="name" label="负债名称" rules={[{ required: true, message: '请输入负债名称' }]}>
+            <Input placeholder="例如：自住房按揭贷款、车贷" />
+          </Form.Item>
+          <Form.Item name="type" label="负债类型" rules={[{ required: true }]}>
+            <Select
+              options={(['房贷', '车贷', '消费贷', '经营贷', '其他'] as LiabilityType[]).map((t) => ({ value: t, label: t }))}
+            />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="remainingPrincipal" label="剩余本金 (¥)" rules={[{ required: true, message: '请输入剩余本金' }]}>
+                <InputNumber style={{ width: '100%' }} min={0} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="annualRatePct" label="年利率 (%)" rules={[{ required: true, message: '请输入年利率' }]}>
+                <InputNumber style={{ width: '100%' }} min={0} max={36} step={0.01} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="monthlyPayment" label="月供 (¥)" rules={[{ required: true, message: '请输入月供' }]}>
+                <InputNumber style={{ width: '100%' }} min={0} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="remainingMonths" label="剩余月数" rules={[{ required: true, message: '请输入剩余月数' }]}>
+                <InputNumber style={{ width: '100%' }} min={1} max={600} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="collateralAssetId" label="关联抵押资产（可选）"
+            extra="选择对应的房产资产，便于联动分析">
+            <Select
+              allowClear
+              placeholder="无抵押资产"
+              options={assets
+                .filter((a) => a.category === 'real_estate')
+                .map((a) => ({ value: a.id, label: a.name }))}
+            />
+          </Form.Item>
           <Form.Item name="notes" label="备注">
             <Input.TextArea rows={2} />
           </Form.Item>
