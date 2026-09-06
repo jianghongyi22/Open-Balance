@@ -3,10 +3,11 @@ import { diagnose } from '../src/engine/report'
 import {
   netWorth, emergencyMonths, debtToIncome, hhi,
   hasMaturityGap, maturingValueWithinYear, maxWMPIssuerShare,
-  retirementProjection,
+  retirementProjection, lifecycleAge,
 } from '../src/engine/metrics'
 import { SAMPLE_ASSETS, SAMPLE_LIABILITIES, SAMPLE_PROFILE } from '../src/data/sampleData'
 import { generateRecommendations } from '../src/engine/recommendations'
+import { applyShocks, runScenario } from '../src/scenario'
 import type { Snapshot, Asset, Liability, HouseholdProfile } from '../src/types'
 
 // --- Test Helpers ---
@@ -526,5 +527,145 @@ describe('建议引擎量化 (Issue #7)', () => {
       const r8 = recs.find((r) => r.checkRef === 'Q8')
       expect(r8).toBeUndefined() // 通过则不生成建议
     }
+  })
+})
+
+// ============================================================
+// Issue #6: 年龄分离（经济支柱 vs 家庭最大年龄）
+// ============================================================
+
+describe('年龄分离 (Issue #6)', () => {
+
+  it('明确填写经济支柱年龄时应优先使用', () => {
+    const profile = { memberAges: [65, 38], breadwinnerAge: 38 } as Snapshot['profile']
+    expect(lifecycleAge(profile)).toBe(38)
+  })
+
+  it('未填写时自动取 60 岁以下成员最大年龄（不取退休老人年龄）', () => {
+    const profile = { memberAges: [65, 38] } as Snapshot['profile']
+    expect(lifecycleAge(profile)).toBe(38)
+  })
+
+  it('全部成员 ≥60 岁时退回最大年龄', () => {
+    const profile = { memberAges: [65, 70] } as Snapshot['profile']
+    expect(lifecycleAge(profile)).toBe(70)
+  })
+
+  it('包含 60 岁以上老人的家庭，Q2 目标权益仓位基于经济支柱年龄', () => {
+    const snapshot = makeSnapshot({
+      profile: { memberAges: [65, 38], breadwinnerAge: 38 },
+    })
+    const report = diagnose(snapshot)
+    const q2 = report.checks.find((c) => c.id === 'Q2')!
+    // 基于 38 岁：目标 (110-38)% = 72%，而非基于 65 岁的 45%
+    expect(q2.threshold).toContain('38')
+    expect(q2.threshold).toContain('72')
+  })
+})
+
+// ============================================================
+// Issue #11: 评分与场景边界用例
+// ============================================================
+
+describe('边界用例 (Issue #11)', () => {
+
+  it('一票警告：全部临界检查通过时不触发', () => {
+    // 构造健康组合：应急金充足 + 保险齐全 + 低负债 + 风险匹配
+    const snapshot = makeSnapshot({
+      assets: [
+        { id: 'a1', name: '活期+货基', category: 'cash_deposit', subCategory: '货币基金', marketValue: 72_000, currency: 'CNY', liquidity: 'high', riskLevel: 'low' },
+        { id: 'a2', name: '理财', category: 'fixed_income', subCategory: '银行理财', marketValue: 300_000, currency: 'CNY', liquidity: 'medium', riskLevel: 'low', issuer: '招银理财' },
+        { id: 'a3', name: '沪深300ETF', category: 'equity', subCategory: '指数/ETF基金', marketValue: 150_000, currency: 'CNY', liquidity: 'high', riskLevel: 'high' },
+        { id: 'a4', name: '重疾险', category: 'insurance', subCategory: '重疾险', marketValue: 0, currency: 'CNY', liquidity: 'low', riskLevel: 'low', insuranceCoverage: 500_000, insuranceAnnualPremium: 8_000 },
+        { id: 'a5', name: '医疗险', category: 'insurance', subCategory: '医疗险', marketValue: 0, currency: 'CNY', liquidity: 'low', riskLevel: 'low', insuranceCoverage: 4_000_000, insuranceAnnualPremium: 2_000 },
+        { id: 'a6', name: '定寿', category: 'insurance', subCategory: '定期寿险', marketValue: 0, currency: 'CNY', liquidity: 'low', riskLevel: 'low', insuranceCoverage: 1_000_000, insuranceAnnualPremium: 3_000 },
+        { id: 'a7', name: '意外险', category: 'insurance', subCategory: '意外险', marketValue: 0, currency: 'CNY', liquidity: 'low', riskLevel: 'low', insuranceCoverage: 1_000_000, insuranceAnnualPremium: 500 },
+      ],
+      liabilities: [],
+    })
+    const report = diagnose(snapshot)
+    expect(report.criticalFlag).toBe(false)
+    expect(report.criticalChecks).toHaveLength(0)
+  })
+
+  it('交叉验证降级：定性 pass + 定量 fail 差两档时触发覆盖', () => {
+    // Q2 生命周期适配：35 岁目标 75% 成长仓位 → 全部权益 → Q2 pass
+    // Q13 组合风险：σ≈22% 远超稳健型 5-10% → fail
+    const snapshot = makeSnapshot({
+      assets: [
+        { id: 'a1', name: '沪深300ETF', category: 'equity', subCategory: '指数/ETF基金', marketValue: 300_000, currency: 'CNY', liquidity: 'high', riskLevel: 'high' },
+        { id: 'a2', name: '货币基金', category: 'cash_deposit', subCategory: '货币基金', marketValue: 100_000, currency: 'CNY', liquidity: 'high', riskLevel: 'low' },
+      ],
+      profile: { riskToleranceScore: 50 },
+    })
+    const report = diagnose(snapshot)
+    const q2 = report.checks.find((c) => c.id === 'Q2')!
+    expect(report.crossValidationOverrides).toContain('Q2')
+    expect(q2.status).toBe('warn') // 被交叉验证降级
+  })
+
+  it('空快照生成建议：全部插值完成且不抛异常', () => {
+    const snapshot = makeSnapshot()
+    const report = diagnose(snapshot)
+    const recs = generateRecommendations(snapshot, report.checks)
+    expect(Array.isArray(recs)).toBe(true)
+    for (const r of recs) {
+      expect(r.title).not.toContain('{')
+      expect(r.description).not.toContain('{')
+    }
+  })
+
+  it('收入中断 0 个月：年收入不变', () => {
+    const snapshot = makeSnapshot({ profile: { annualIncome: 240_000 } })
+    const shocked = applyShocks(snapshot, {
+      stockMarketPct: 0, propertyMarketPct: 0, interestRateBps: 0,
+      fxRatePct: 0, incomeInterruptionMonths: 0,
+    })
+    expect(shocked.profile.annualIncome).toBe(240_000)
+  })
+
+  it('收入中断 12 个月：年收入归零', () => {
+    const snapshot = makeSnapshot({ profile: { annualIncome: 240_000 } })
+    const shocked = applyShocks(snapshot, {
+      stockMarketPct: 0, propertyMarketPct: 0, interestRateBps: 0,
+      fxRatePct: 0, incomeInterruptionMonths: 12,
+    })
+    expect(shocked.profile.annualIncome).toBe(0)
+  })
+
+  it('股房双杀极端值：无 NaN、无负资产', () => {
+    const snapshot = makeSnapshot({
+      assets: [
+        { id: 'a1', name: '沪深300ETF', category: 'equity', subCategory: '指数/ETF基金', marketValue: 200_000, currency: 'CNY', liquidity: 'high', riskLevel: 'high' },
+        { id: 'a2', name: '自住房', category: 'real_estate', subCategory: '自住房', marketValue: 3_000_000, currency: 'CNY', liquidity: 'low', riskLevel: 'medium', isPrimaryResidence: true },
+      ],
+    })
+    const shocked = applyShocks(snapshot, {
+      stockMarketPct: -30, propertyMarketPct: -15, interestRateBps: 0,
+      fxRatePct: 0, incomeInterruptionMonths: 0,
+    })
+    for (const a of shocked.assets) {
+      expect(Number.isFinite(a.marketValue)).toBe(true)
+      expect(a.marketValue).toBeGreaterThanOrEqual(0)
+    }
+    const equity = shocked.assets.find((a) => a.category === 'equity')!
+    expect(equity.marketValue).toBe(140_000) // 200k × 0.7
+    const house = shocked.assets.find((a) => a.category === 'real_estate')!
+    expect(house.marketValue).toBe(2_550_000) // 3M × 0.85
+  })
+
+  it('负资产快照（负债>资产）：诊断不崩溃且评级为 D', () => {
+    const snapshot = makeSnapshot({
+      assets: [
+        { id: 'a1', name: '现金', category: 'cash_deposit', subCategory: '活期存款', marketValue: 10_000, currency: 'CNY', liquidity: 'high', riskLevel: 'low' },
+      ],
+      liabilities: [
+        { id: 'l1', name: '消费贷', type: '消费贷', remainingPrincipal: 200_000, annualRatePct: 8, monthlyPayment: 10_000, remainingMonths: 24 },
+      ],
+    })
+    const report = diagnose(snapshot)
+    expect(netWorth(snapshot)).toBeLessThan(0)
+    expect(report.grade).toBe('D')
+    expect(report.overallScore).toBeLessThanOrEqual(100)
   })
 })
