@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card, Typography, Button, Space, Modal, message, Descriptions, Alert, Row, Col, Tag,
 } from 'antd'
@@ -6,7 +6,7 @@ import {
   DownloadOutlined, ImportOutlined, DeleteOutlined,
   ExclamationCircleOutlined, FileTextOutlined, FileExcelOutlined,
 } from '@ant-design/icons'
-import { useStore } from '../store'
+import { useStore, wasStorageRecovered } from '../store'
 import { formatCNY } from '../utils/format'
 import ImportModal from '../components/ImportModal'
 
@@ -16,6 +16,14 @@ export default function DataManagement() {
   const { assets, liabilities, profile, exportData, clearAllData, loadSampleData } = useStore()
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
+
+  // 本地存储损坏恢复提示（会话级标志，挂载时提示一次）
+  const recovered = wasStorageRecovered()
+  useEffect(() => {
+    if (recovered) {
+      message.warning('检测到本地数据损坏，已备份为 corrupted 键并重置为空数据。建议先导出 JSON 备份。')
+    }
+  }, [recovered])
 
   const handleExport = () => {
     const data = exportData()
@@ -45,6 +53,17 @@ export default function DataManagement() {
       <Title level={4}>数据管理</Title>
 
       <Row gutter={[16, 16]}>
+        {recovered && (
+          <Col span={24}>
+            <Alert
+              type="warning"
+              showIcon
+              message="本地数据已从损坏状态恢复"
+              description="原始损坏数据已备份到 localStorage 的 open-balance-store-corrupted-* 键中，当前数据已重置。"
+            />
+          </Col>
+        )}
+
         {/* Summary */}
         <Col span={24}>
           <Card title="数据概览">

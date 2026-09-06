@@ -1,10 +1,11 @@
 // ============================================================
 // Open-Balance: Zustand Store
 // Central state with localStorage persistence.
+// 带版本迁移（migrate）与损坏恢复（损坏数据备份后重置）。
 // ============================================================
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
 import type {
   Asset,
@@ -179,7 +180,51 @@ export const useStore = create<AppStore>()(
     }),
     {
       name: 'open-balance-store',
-      version: 1,
+      version: 2,
+      // 版本迁移链：未来数据模型变更在此逐级升级
+      migrate: (persistedState: unknown) => {
+        // v1 → v2：暂无字段变更，透传
+        return persistedState as AppStore
+      },
+      storage: createJSONStorage(() => ({
+        getItem: (name: string) => {
+          const raw = localStorage.getItem(name)
+          if (raw === null) return null
+          try {
+            JSON.parse(raw) // 校验完整性
+            return raw
+          } catch {
+            // 损坏数据：备份后重置，避免静默损坏
+            try {
+              localStorage.setItem(
+                `${name}-corrupted-${Date.now()}`,
+                raw
+              )
+            } catch {
+              // 备份失败也不阻塞启动
+            }
+            localStorage.removeItem(name)
+            setStorageRecovered()
+            return null
+          }
+        },
+        setItem: (name: string, value: string) =>
+          localStorage.setItem(name, value),
+        removeItem: (name: string) => localStorage.removeItem(name),
+      })),
     }
   )
 )
+
+// --- 损坏恢复标志（Data 页用于提示用户） ---
+
+let recoveredFlag = false
+
+function setStorageRecovered() {
+  recoveredFlag = true
+}
+
+/** 本次会话是否发生过本地存储损坏恢复（会话级只读标志，不重置） */
+export function wasStorageRecovered(): boolean {
+  return recoveredFlag
+}
