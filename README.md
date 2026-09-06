@@ -23,28 +23,28 @@ Open-Balance 做的不是交易平台，而是**体检**：用公认的理财框
 
 | 检查 | 框架依据 | 证据等级 |
 |------|----------|----------|
-| 标准普尔四象限 | 要花的钱/保命的钱/生钱的钱/保本升值的钱 | 经验法则 |
-| 生命周期适配度 | 110−年龄 法则 | 研究依据 |
-| 应急备用金 | 3-6 个月刚性支出 | 研究依据 |
-| 家庭保障充分性 | 寿险 5×年收入、重疾 30 万 | 研究依据 |
-| 负债压力 | 月供收入比 ≤40%、总负债率 ≤40% | 监管标准 |
-| 4321 法则 | 收入分配 40/30/20/10 | 经验法则 |
-| 风险偏好匹配 | 测评结果 vs 组合实际风险（适当性检查） | 监管标准 |
-| 养老储备测算 | DCF 折现现金流模型（三档情景，扣除社保） | 研究依据 |
+| [标准普尔四象限](src/engine/checks/check01-spQuadrant.ts) | 要花的钱/保命的钱/生钱的钱/保本升值的钱 | 经验法则 |
+| [生命周期适配度](src/engine/checks/check02-lifecycle.ts) | 110−年龄 法则 | 研究依据 |
+| [应急备用金](src/engine/checks/check03-emergency.ts) | 3-6 个月刚性支出 | 研究依据 |
+| [家庭保障充分性](src/engine/checks/check04-insurance.ts) | 寿险 5×年收入、重疾 30 万 | 研究依据 |
+| [负债压力](src/engine/checks/check05-debt.ts) | 月供收入比 ≤40%、总负债率 ≤40% | 监管标准 |
+| [4321 法则](src/engine/checks/check06-rule4321.ts) | 收入分配 40/30/20/10 | 经验法则 |
+| [风险偏好匹配](src/engine/checks/check07-riskMatch.ts) | 测评结果 vs 组合实际风险（适当性检查） | 监管标准 |
+| [养老储备测算](src/engine/checks/check08-retirement.ts) | DCF 折现现金流模型（三档情景，扣除社保） | 研究依据 |
 
 **定量层 · 量化风险指标（9 项）**
 
 | 检查 | 指标 | 证据等级 |
 |------|------|----------|
-| 集中度风险 | HHI、房地产占比、单只持仓占比 | 研究依据 |
-| 流动性风险 | 高流动性资产占比 | 研究依据 |
-| 汇率风险 | 非人民币敞口 | 研究依据 |
-| 信用与久期风险 | 到期日精确匹配、单一发行方集中度 | 研究依据 |
-| 组合风险指标 | 波动率、VaR(95%)、夏普比率、最大回撤 | 研究依据 |
-| 相关性分析 | 高相关大仓位的虚假分散化 | 研究依据 |
-| 资金效率 | 现金拖累 | 研究依据 |
-| 被动现金流覆盖 | 被动收入/月度刚性支出 | 研究依据 |
-| 教育金储备 | 教育目标现值 vs 已定向教育金资产 | 研究依据 |
+| [集中度风险](src/engine/checks/check09-concentration.ts) | HHI、房地产占比、单只持仓占比 | 研究依据 |
+| [流动性风险](src/engine/checks/check10-liquidity.ts) | 高流动性资产占比 | 研究依据 |
+| [汇率风险](src/engine/checks/check11-fxRisk.ts) | 非人民币敞口 | 研究依据 |
+| [信用与久期风险](src/engine/checks/check12-creditDuration.ts) | 到期日精确匹配、单一发行方集中度 | 研究依据 |
+| [组合风险指标](src/engine/checks/check13-portfolioRisk.ts) | 波动率、VaR(95%)、夏普比率、最大回撤 | 研究依据 |
+| [相关性分析](src/engine/checks/check14-correlation.ts) | 高相关大仓位的虚假分散化 | 研究依据 |
+| [资金效率](src/engine/checks/check15-cashDrag.ts) | 现金拖累 | 研究依据 |
+| [被动现金流覆盖](src/engine/checks/check16-cashFlow.ts) | 被动收入/月度刚性支出 | 研究依据 |
+| [教育金储备](src/engine/checks/check17-education.ts) | 教育目标现值 vs 已定向教育金资产 | 研究依据 |
 
 **评分机制**：加权评分（0-100）+ A-D 评级；**证据分级**（经验法则类检查只能提示不能否决，且降权）；**一票警告**（应急金/保障/负债/风险匹配任一未通过，评级封顶 C）；**定性×定量交叉验证**（同一维度两套结论差超一档自动降级）。
 
@@ -76,7 +76,7 @@ Open-Balance 做的不是交易平台，而是**体检**：用公认的理财框
 ## 快速开始
 
 ```bash
-# 环境要求：Node.js ≥ 18
+# 环境要求：Node.js ≥ 20（vite 8 要求）
 git clone https://github.com/jianghongyi22/Open-Balance.git
 cd Open-Balance
 npm install
@@ -84,7 +84,7 @@ npm install
 npm run dev      # 开发模式 → http://localhost:5173
 npm run build    # 类型检查 + 生产构建 → dist/
 npm run preview  # 本地预览生产构建
-npm test         # 运行全部测试（67 个用例）
+npm test         # 运行全部测试（82 个用例）
 ```
 
 不想录入数据？引导页提供**「载入示例数据体验」**，一键载入一个二线城市中年家庭的完整资产配置（含房贷、股票、保险、存款）。
@@ -97,8 +97,8 @@ npm test         # 运行全部测试（67 个用例）
 | UI | Ant Design 5 |
 | 图表 | ECharts |
 | 状态 | Zustand（localStorage 持久化） |
-| 表格解析 | SheetJS (xlsx)，UTF-8/GBK 自适应 |
-| 测试 | Vitest（引擎 32 + 导入 35 用例） |
+| 表格解析 | exceljs + 自实现 CSV 解析（UTF-8/GBK 自适应） |
+| 测试 | Vitest 5（引擎 47 + 导入 35 用例） |
 
 架构核心：诊断引擎是快照的**纯函数** `diagnose(snapshot) → DiagnosticReport`。17 项检查各一个模块（`src/engine/checks/`），全部阈值集中在 `src/data/thresholds.ts` 单源管理，市场参数（收益/波动/相关性矩阵）在 `src/data/marketParams.ts`——换数据不换逻辑。
 
@@ -112,6 +112,8 @@ src/
 ├── scenario/    # 情景冲击模拟
 └── pages/       # 引导、总览、台账、报告、建议、情景分析、数据管理
 ```
+
+贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)，数据模型文档见 [docs/data-model.md](docs/data-model.md)。
 
 ## 测试
 
