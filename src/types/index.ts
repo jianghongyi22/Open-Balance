@@ -152,6 +152,8 @@ export interface HouseholdProfile {
   riskToleranceScore: number // 0-100, from questionnaire
   province?: string
   retirementAge?: number // 默认 60
+  /** 家庭经济支柱年龄（生命周期检查用）。默认取 60 岁以下成员的最大年龄。 */
+  breadwinnerAge?: number
   /** 预计退休后社保/企业年金月领取额。未填写时按年收入的固定比例估算。 */
   monthlySocialPension?: number
   goals?: {

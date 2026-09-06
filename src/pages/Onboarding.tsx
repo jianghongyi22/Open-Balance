@@ -32,6 +32,7 @@ export default function Onboarding() {
           riskToleranceScore: 50,
           retirementAge: 60,
           monthlySocialPension: values.monthlySocialPension,
+          breadwinnerAge: values.breadwinnerAge,
           goals: {
             educationTier: values.educationTier,
           },
@@ -67,6 +68,10 @@ export default function Onboarding() {
         </Form.Item>
         <Form.Item label="配偶/伴侣年龄（如适用）" name="age2">
           <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder="如无则不填" />
+        </Form.Item>
+        <Form.Item label="家庭经济支柱年龄" name="breadwinnerAge"
+          extra="选填。生命周期检查（110-年龄法则）使用此年龄；不填则自动取60岁以下成员最大年龄">
+          <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder="默认自动推算" />
         </Form.Item>
         <Form.Item label="抚养人数（未成年子女/老人）" name="dependentCount">
           <InputNumber min={0} max={10} style={{ width: '100%' }} placeholder="0" />

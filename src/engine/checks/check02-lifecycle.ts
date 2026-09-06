@@ -1,9 +1,9 @@
 import type { CheckResult, Snapshot } from '../../types'
-import { oldestAge, lifecycleEquityTarget, growthAssetShare } from '../metrics'
+import { lifecycleAge, lifecycleEquityTarget, growthAssetShare } from '../metrics'
 import { LIFECYCLE_BAND } from '../../data/thresholds'
 
 export function check02(snapshot: Snapshot): CheckResult {
-  const age = oldestAge(snapshot.profile)
+  const age = lifecycleAge(snapshot.profile)
   const target = lifecycleEquityTarget(age)
   const actual = growthAssetShare(snapshot.assets)
   const diff = actual - target
@@ -26,7 +26,7 @@ export function check02(snapshot: Snapshot): CheckResult {
     measuredValue: actual,
     measuredLabel: `成长类资产占比 ${(actual * 100).toFixed(1)}%`,
     threshold: `目标 ${(target * 100).toFixed(1)}% ±${(LIFECYCLE_BAND * 100).toFixed(0)}pp (基于最大年龄${age}岁)`,
-    detail: `最大年龄${age}岁，目标权益/成长仓位 ${(target * 100).toFixed(1)}%，当前 ${(actual * 100).toFixed(1)}%，偏差 ${(diff > 0 ? '+' : '')}${(diff * 100).toFixed(1)}pp。${
+    detail: `经济支柱年龄${age}岁，目标权益/成长仓位 ${(target * 100).toFixed(1)}%，当前 ${(actual * 100).toFixed(1)}%，偏差 ${(diff > 0 ? '+' : '')}${(diff * 100).toFixed(1)}pp。${
       actual > target + LIFECYCLE_BAND
         ? '成长类资产偏高，建议适当降低风险敞口。'
         : actual < target - LIFECYCLE_BAND

@@ -198,6 +198,24 @@ export function oldestAge(profile: Snapshot['profile']): number {
   return Math.max(...profile.memberAges, 0)
 }
 
+/**
+ * 生命周期检查使用的"经济支柱年龄"：
+ * - 优先使用档案填写的 breadwinnerAge
+ * - 否则取 60 岁以下成员的最大年龄（避免把同住的退休老人
+ *   年龄误作家庭风险年龄，压低权益配置目标）
+ * - 全部成员 ≥60 岁时退回最大年龄
+ */
+export function lifecycleAge(profile: Snapshot['profile']): number {
+  if (profile.breadwinnerAge && profile.breadwinnerAge > 0) {
+    return profile.breadwinnerAge
+  }
+  const workingAges = profile.memberAges.filter((a) => a < 60)
+  if (workingAges.length > 0) {
+    return Math.max(...workingAges)
+  }
+  return oldestAge(profile)
+}
+
 export function lifecycleEquityTarget(age: number): number {
   return Math.max(0, (110 - age) / 100)
 }
