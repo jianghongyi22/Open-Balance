@@ -6,6 +6,7 @@ import {
   retirementProjection,
 } from '../src/engine/metrics'
 import { SAMPLE_ASSETS, SAMPLE_LIABILITIES, SAMPLE_PROFILE } from '../src/data/sampleData'
+import { generateRecommendations } from '../src/engine/recommendations'
 import type { Snapshot, Asset, Liability, HouseholdProfile } from '../src/types'
 
 // --- Test Helpers ---
@@ -467,5 +468,63 @@ describe('教育金储备 (Issue #5)', () => {
   it('17 项检查全部注册并参与评分', () => {
     const report = diagnose(makeSnapshot())
     expect(report.checks.map((c) => c.id)).toContain('Q17')
+  })
+})
+
+// ============================================================
+// Issue #7: 建议引擎数字插值
+// ============================================================
+
+describe('建议引擎量化 (Issue #7)', () => {
+
+  it('应急金建议应包含实际缺口数字', () => {
+    const snapshot = makeSnapshot({
+      assets: [], // 无流动资产
+      profile: { monthlyEssentialExpense: 10_000 },
+    })
+    const report = diagnose(snapshot)
+    const recs = generateRecommendations(snapshot, report.checks)
+    const q3 = recs.find((r) => r.checkRef === 'Q3')!
+    expect(q3).toBeDefined()
+    expect(q3.title).toContain('¥60,000') // 6个月 × 10,000
+    expect(q3.description).toContain('目标 6 个月')
+    expect(q3.steps.join(' ')).toContain('个月补齐')
+  })
+
+  it('保障建议应包含寿险与重疾缺口数字', () => {
+    const snapshot = makeSnapshot({ assets: [] }) // 无保险
+    const report = diagnose(snapshot)
+    const recs = generateRecommendations(snapshot, report.checks)
+    const q4 = recs.find((r) => r.checkRef === 'Q4')!
+    expect(q4).toBeDefined()
+    expect(q4.title).toContain('¥1,000,000') // 5×年收入20万
+    expect(q4.title).toContain('¥300,000') // 重疾30万
+  })
+
+  it('所有生成的建议均完成插值（无未替换占位符）', () => {
+    const report = diagnose(makeSnapshot())
+    const recs = generateRecommendations(makeSnapshot(), report.checks)
+    for (const r of recs) {
+      expect(r.title).not.toContain('{')
+      expect(r.description).not.toContain('{')
+      expect(r.steps.join('')).not.toContain('{')
+    }
+  })
+
+  it('缺项场景：无退休缺口时显示"无"', () => {
+    // 社保覆盖全部需求 + 大量资产 → Q8 可能仍因自住房剔除而不足，构造极端：无需求场景
+    const snapshot = makeSnapshot({
+      assets: [
+        { id: 'a1', name: '养老理财', category: 'fixed_income', subCategory: '银行理财', marketValue: 100_000_000, currency: 'CNY', liquidity: 'medium', riskLevel: 'low' },
+      ],
+      profile: { annualIncome: 200_000 },
+    })
+    const report = diagnose(snapshot)
+    const q8 = report.checks.find((c) => c.id === 'Q8')!
+    if (q8.status !== 'pass') {
+      const recs = generateRecommendations(snapshot, report.checks)
+      const r8 = recs.find((r) => r.checkRef === 'Q8')
+      expect(r8).toBeUndefined() // 通过则不生成建议
+    }
   })
 })

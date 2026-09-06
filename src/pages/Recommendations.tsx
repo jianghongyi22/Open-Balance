@@ -20,7 +20,7 @@ export default function Recommendations() {
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: profile! }), [assets, liabilities, profile])
   const report = useMemo(() => diagnose(snapshot), [snapshot])
-  const recs = useMemo(() => generateRecommendations(report.checks), [report])
+  const recs = useMemo(() => generateRecommendations(snapshot, report.checks), [snapshot, report])
 
   if (!profile) return <Empty description="请先完成引导" />
 

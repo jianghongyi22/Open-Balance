@@ -2,12 +2,29 @@
 // Open-Balance: Recommendation Engine
 //
 // Maps failing/warning checks to actionable recommendations
-// grouped by urgency.
+// grouped by urgency. Templates support numeric interpolation:
+// computed gaps (应急金缺口、保障缺口、退休缺口…) are injected
+// into the text so users get a quantified action list.
 // ============================================================
 
-import type { CheckResult, Recommendation } from '../types'
+import type { CheckResult, Recommendation, Snapshot } from '../types'
+import {
+  emergencyMonths,
+  totalLifeCoverage,
+  totalCriticalIllnessCoverage,
+  debtToIncome,
+  retirementProjection,
+  educationProjection,
+} from './metrics'
+import {
+  EMERGENCY_MONTHS_PASS,
+  LIFE_INSURANCE_MULTIPLIER,
+  CRITICAL_ILLNESS_MIN,
+} from '../data/thresholds'
+import { formatCNY } from '../utils/format'
 
-// Map of check ID → recommendation templates
+// Map of check ID → recommendation templates.
+// `{placeholder}` tokens are replaced by computed values from buildContext.
 const RECOMMENDATION_MAP: Record<string, Omit<Recommendation, 'id' | 'checkRef'>> = {
   Q1: {
     title: '调整四大账户配置比例',
@@ -28,45 +45,43 @@ const RECOMMENDATION_MAP: Record<string, Omit<Recommendation, 'id' | 'checkRef'>
     effort: '1-2小时',
     expectedEffect: '风险水平与人生阶段匹配，退休前不过度冒险或保守',
     steps: [
-      '确认家庭最大年龄成员的年龄',
+      '确认家庭经济支柱的年龄',
       '计算目标权益仓位 = (110 - 年龄)%',
       '通过增减基金定投或赎回逐步调整',
     ],
   },
   Q3: {
-    title: '建立应急备用金',
-    description: '当前应急储备不足，无法应对突发失业或大额支出。',
+    title: '建立应急备用金（缺口 {emergencyGapCNY}）',
+    description: '当前应急储备不足 {emergencyMonths} 个月，目标 {emergencyTargetMonths} 个月，缺口约 {emergencyGapCNY}。',
     urgency: 'immediate',
     effort: '视缺口而定',
-    expectedEffect: '获得3-6个月的财务安全垫，降低意外冲击风险',
+    expectedEffect: '获得 3-6 个月的财务安全垫，降低意外冲击风险',
     steps: [
-      '计算3-6个月刚性支出的总额',
-      '每月从收入中预留固定比例存入货币基金',
       '优先使用年终奖等一次性收入加速补充',
-      '应急金存入独立账户，不与其他资金混用',
+      '每月从收入中预留 {emergencyMonthlyFill}，约 {emergencyMonthsToFill} 个月补齐',
+      '应急金存入独立货币基金账户，不与其他资金混用',
     ],
   },
   Q4: {
-    title: '补足家庭保障缺口',
-    description: '当前保险保障存在缺口，家庭面临风险敞口。',
+    title: '补足家庭保障缺口（寿险缺口 {lifeGapCNY}，重疾缺口 {ciGapCNY}）',
+    description: '寿险保额缺口约 {lifeGapCNY}（目标 5×年收入），重疾保额缺口约 {ciGapCNY}。',
     urgency: 'immediate',
     effort: '需咨询保险顾问',
     expectedEffect: '消除家庭重大风险敞口，避免因病/意外返贫',
     steps: [
-      '优先补充家庭经济支柱的定期寿险（保额≥5倍年收入）',
-      '检查重疾险保额是否达到30-50万',
+      '优先补充家庭经济支柱的定期寿险',
+      '检查重疾险保额是否达到 30-50 万',
       '确认全家有百万医疗险覆盖',
       '保费总支出控制在年收入10-20%',
     ],
   },
   Q5: {
-    title: '优化负债结构，降低月供压力',
-    description: '当前负债率或月供收入比超出安全线。',
+    title: '优化负债结构，降低月供压力（当前月供收入比 {dtiPct}）',
+    description: '当前月供收入比约 {dtiPct}，超过 40% 安全线将显著挤压储蓄与投资空间。',
     urgency: 'this_month',
     effort: '半天',
     expectedEffect: '降低月供压力，释放现金流用于储蓄和投资',
     steps: [
-      '计算当前DTI（月供/月收入）和总负债率',
       '考虑提前偿还高息贷款（消费贷>车贷>房贷）',
       '评估是否有转按揭/置换低息贷款的可能',
       '制定3-5年去杠杆计划',
@@ -74,7 +89,7 @@ const RECOMMENDATION_MAP: Record<string, Omit<Recommendation, 'id' | 'checkRef'>
   },
   Q6: {
     title: '按照4321法则优化支出结构',
-    description: '当前家庭收入分配偏离4321法则。',
+    description: '当前家庭收入分配偏离4321法则（参考提示，非硬性标准）。',
     urgency: 'this_quarter',
     effort: '1小时',
     expectedEffect: '收入分配更科学，避免消费过度挤占储蓄投资',
@@ -97,15 +112,15 @@ const RECOMMENDATION_MAP: Record<string, Omit<Recommendation, 'id' | 'checkRef'>
     ],
   },
   Q8: {
-    title: '加大养老储蓄力度',
-    description: '当前养老储备不足以支持退休后的生活水平。',
+    title: '加大养老储蓄力度（中性缺口 {retirementGapCNY}）',
+    description: '退休资金中性情景缺口现值约 {retirementGapCNY}（已扣除社保/年金，剔除自住房）。',
     urgency: 'this_quarter',
     effort: '视缺口而定',
     expectedEffect: '确保退休后维持目标生活水平',
     steps: [
-      '测算退休所需总金额（年支出×退休年限）',
       '充分利用个人养老金账户的税收优惠',
       '增加养老目标基金或年金险的定期投入',
+      '重新审视退休年龄与目标替代率假设',
     ],
   },
   Q9: {
@@ -154,7 +169,7 @@ const RECOMMENDATION_MAP: Record<string, Omit<Recommendation, 'id' | 'checkRef'>
     steps: [
       '建立固收产品到期时间表',
       '确保每季度都有到期资金覆盖日常支出',
-      '单一银行/平台的理财产品不超过固收总规模的50%',
+      '单一发行方的理财产品不超过固收总规模的50%',
     ],
   },
   Q13: {
@@ -182,8 +197,8 @@ const RECOMMENDATION_MAP: Record<string, Omit<Recommendation, 'id' | 'checkRef'>
     ],
   },
   Q15: {
-    title: '减少闲置资金，提升资金效率',
-    description: '活期存款等低效资金占比过高，长期跑输通胀。',
+    title: '减少闲置资金，提升资金效率（闲置 {idleCashCNY}）',
+    description: '活期存款等低效资金约 {idleCashCNY}，长期跑输通胀。',
     urgency: 'this_month',
     effort: '10分钟',
     expectedEffect: '提升整体收益率，跑赢通胀',
@@ -206,25 +221,106 @@ const RECOMMENDATION_MAP: Record<string, Omit<Recommendation, 'id' | 'checkRef'>
     ],
   },
   Q17: {
-    title: '建立教育金储备计划',
-    description: '当前教育金储备不足，难以覆盖子女高等教育目标。',
+    title: '建立教育金储备计划（缺口 {educationGapCNY}）',
+    description: '教育金储备缺口现值约 {educationGapCNY}。',
     urgency: 'this_month',
     effort: '1-2小时',
     expectedEffect: '子女教育资金有保障，避免未来临时举债',
     steps: [
       '确认教育目标档位（国内/海外本科）与距入学年数',
-      '测算目标金额现值与当前缺口',
       '选择储蓄型保险或教育定投计划，按月定额投入',
       '教育金单独账户管理，不与其他资金混用',
     ],
   },
 }
 
+// --- Context building (computed gaps for interpolation) ---
+
+type InterpContext = Record<string, string>
+
+function buildContext(snapshot: Snapshot): InterpContext {
+  const { profile, assets } = snapshot
+  const monthlyExpense = profile.monthlyEssentialExpense
+  const monthlyIncome = profile.annualIncome / 12
+
+  // 应急金
+  const emergencyLiquid = emergencyMonths(snapshot) * monthlyExpense
+  const emergencyGap = Math.max(0, EMERGENCY_MONTHS_PASS * monthlyExpense - emergencyLiquid)
+  const emergencyMonthlyFill = Math.round(monthlyIncome * 0.2)
+  const emergencyMonthsToFill =
+    emergencyGap > 0 && emergencyMonthlyFill > 0
+      ? Math.ceil(emergencyGap / emergencyMonthlyFill)
+      : 0
+
+  // 保障
+  const lifeGap = Math.max(0, profile.annualIncome * LIFE_INSURANCE_MULTIPLIER - totalLifeCoverage(assets))
+  const ciGap = Math.max(0, CRITICAL_ILLNESS_MIN - totalCriticalIllnessCoverage(assets))
+
+  // 负债
+  const dtiPct = (debtToIncome(snapshot) * 100).toFixed(1)
+
+  // 退休/教育（缺口为 0 时显示"无"）
+  const retireProj = retirementProjection(snapshot)
+  const eduProj = educationProjection(snapshot)
+
+  // 闲置资金
+  const idleCash = assets
+    .filter((a) => a.category === 'cash_deposit' && (a.subCategory === '活期存款' || !a.subCategory))
+    .reduce((s, a) => s + a.marketValue, 0)
+
+  return {
+    emergencyMonths: emergencyMonths(snapshot).toFixed(1),
+    emergencyTargetMonths: String(EMERGENCY_MONTHS_PASS),
+    emergencyGapCNY: formatCNY(Math.round(emergencyGap)),
+    emergencyMonthlyFill: formatCNY(emergencyMonthlyFill),
+    emergencyMonthsToFill: emergencyMonthsToFill > 0 ? `${emergencyMonthsToFill} 个` : '视收入而定',
+    lifeGapCNY: formatCNY(Math.round(lifeGap)),
+    ciGapCNY: formatCNY(Math.round(ciGap)),
+    dtiPct: `${dtiPct}%`,
+    retirementGapCNY: retireProj.neutral.gapPV > 0 ? formatCNY(retireProj.neutral.gapPV) : '无',
+    educationGapCNY: eduProj.applicable && eduProj.gapPV > 0 ? formatCNY(eduProj.gapPV) : '无',
+    idleCashCNY: formatCNY(Math.round(idleCash)),
+  }
+}
+
+// --- Interpolation ---
+
+function interpolate(text: string, ctx: InterpContext): string {
+  return text.replace(/\{(\w+)\}/g, (match, key: string) => {
+    const value = ctx[key]
+    if (value === undefined) return match // 未知占位符保留原样
+    return value
+  })
+}
+
+// --- Gap magnitudes (for sorting recommendations by size) ---
+
+const GAP_BY_CHECK: Record<string, (snapshot: Snapshot) => number> = {
+  Q3: (s) =>
+    Math.max(0, EMERGENCY_MONTHS_PASS * s.profile.monthlyEssentialExpense - emergencyMonths(s) * s.profile.monthlyEssentialExpense),
+  Q4: (s) =>
+    Math.max(0, s.profile.annualIncome * LIFE_INSURANCE_MULTIPLIER - totalLifeCoverage(s.assets)) +
+    Math.max(0, CRITICAL_ILLNESS_MIN - totalCriticalIllnessCoverage(s.assets)),
+  Q5: (s) => debtToIncome(s) * s.profile.annualIncome,
+  Q8: (s) => retirementProjection(s).neutral.gapPV,
+  Q15: (s) =>
+    s.assets
+      .filter((a) => a.category === 'cash_deposit' && (a.subCategory === '活期存款' || !a.subCategory))
+      .reduce((sum, a) => sum + a.marketValue, 0),
+  Q17: (s) => {
+    const proj = educationProjection(s)
+    return proj.applicable ? proj.gapPV : 0
+  },
+}
+
 // --- Generate recommendations from check results ---
 
-export function generateRecommendations(checks: CheckResult[]): Recommendation[] {
+export function generateRecommendations(
+  snapshot: Snapshot,
+  checks: CheckResult[]
+): Recommendation[] {
+  const ctx = buildContext(snapshot)
   const recs: Recommendation[] = []
-  let counter = 0
 
   // Only generate for warn/fail checks
   for (const check of checks) {
@@ -233,17 +329,25 @@ export function generateRecommendations(checks: CheckResult[]): Recommendation[]
     const template = RECOMMENDATION_MAP[check.id]
     if (!template) continue
 
-    counter++
     recs.push({
       ...template,
       id: `R-${check.id}`,
       checkRef: check.id,
+      title: interpolate(template.title, ctx),
+      description: interpolate(template.description, ctx),
+      expectedEffect: interpolate(template.expectedEffect, ctx),
+      steps: template.steps.map((s) => interpolate(s, ctx)),
     })
   }
 
-  // Sort by urgency
+  // Sort by urgency (立即 > 本月 > 季度)，同级按缺口大小降序
   const urgencyOrder = { immediate: 0, this_month: 1, this_quarter: 2 }
-  recs.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency])
+  recs.sort(
+    (a, b) =>
+      urgencyOrder[a.urgency] - urgencyOrder[b.urgency] ||
+      (GAP_BY_CHECK[b.checkRef]?.(snapshot) ?? 0) -
+        (GAP_BY_CHECK[a.checkRef]?.(snapshot) ?? 0)
+  )
 
   return recs
 }
