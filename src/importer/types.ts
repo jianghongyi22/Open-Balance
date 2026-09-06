@@ -74,8 +74,8 @@ export interface ImportStats {
 
 export interface FormatParser {
   format: ImportFormat
-  /** Try to parse a workbook. Return null if this parser can't handle it. */
-  parseWorkbook(workbook: any, fileName: string): ImportResult | null
+  /** Try to parse a parsed workbook. Return null if this parser can't handle it. */
+  parseWorkbook(workbook: import('./spreadsheet').ParsedWorkbook, fileName: string): ImportResult | null
   /** Try to parse raw text. Return null if this parser can't handle it. */
   parseText?(text: string, fileName: string): ImportResult | null
 }

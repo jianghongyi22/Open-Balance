@@ -20,6 +20,11 @@ const DAY_MS = 86_400_000
 export function parseDateToMs(value: unknown): number | null {
   if (value === null || value === undefined) return null
 
+  // JS Date 对象（exceljs 的日期单元格返回 Date）
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value.getTime()
+  }
+
   // Excel serial date (number)
   if (typeof value === 'number') {
     if (value < 1 || value > 60000) return null // not a plausible date serial

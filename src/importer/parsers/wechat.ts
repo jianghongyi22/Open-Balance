@@ -7,20 +7,17 @@
 //   (note: first row may be a title line, header at row 2+)
 // ============================================================
 
-import * as XLSX from 'xlsx'
 import type { ImportResult, RawTransaction, FormatParser } from '../types'
+import { getSheetRows } from '../spreadsheet'
+import type { ParsedWorkbook } from '../spreadsheet'
 import { transactionsToAssets } from '../converter'
 import { toDateStr, toAmount } from '../dates'
-
-const SHEETJS = XLSX
 
 export const wechatParser: FormatParser = {
   format: 'wechat',
 
-  parseWorkbook(workbook: any, _fileName: string): ImportResult | null {
-    const sheetName = workbook.SheetNames[0]
-    const sheet = workbook.Sheets[sheetName]
-    const rows: any[][] = SHEETJS.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+  parseWorkbook(workbook: ParsedWorkbook, _fileName: string): ImportResult | null {
+    const rows: unknown[][] = getSheetRows(workbook)
 
     if (rows.length < 2) return null
 

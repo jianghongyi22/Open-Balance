@@ -8,20 +8,17 @@
 // ============================================================
 
 import { v4 as uuidv4 } from 'uuid'
-import * as XLSX from 'xlsx'
 import type { ImportResult, RawTransaction, FormatParser } from '../types'
+import { getSheetRows } from '../spreadsheet'
+import type { ParsedWorkbook } from '../spreadsheet'
 import { transactionsToAssets } from '../converter'
 import { toDateStr, toAmount } from '../dates'
-
-const SHEETJS = XLSX
 
 export const bankFlowParser: FormatParser = {
   format: 'bank-generic',
 
-  parseWorkbook(workbook: any, fileName: string): ImportResult | null {
-    const sheetName = workbook.SheetNames[0]
-    const sheet = workbook.Sheets[sheetName]
-    const rows: any[][] = SHEETJS.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+  parseWorkbook(workbook: ParsedWorkbook, fileName: string): ImportResult | null {
+    const rows: unknown[][] = getSheetRows(workbook)
 
     if (rows.length < 2) return null
 

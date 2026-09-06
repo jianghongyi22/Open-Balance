@@ -6,23 +6,20 @@
 // ============================================================
 
 import { v4 as uuidv4 } from 'uuid'
-import * as XLSX from 'xlsx'
 import type { Asset, AssetCategory } from '../../types'
 import { ASSET_CATEGORY_LABELS } from '../../types'
 import type { ImportResult, ColumnMap, FormatParser } from '../types'
+import { getSheetRows } from '../spreadsheet'
+import type { ParsedWorkbook } from '../spreadsheet'
 import { autoMapColumns } from '../column-mapper'
 import { matchCategory } from '../converter'
 import { CATEGORY_LIQUIDITY, CATEGORY_RISK_CLASS } from '../../data/marketParams'
 
-const SHEETJS = XLSX
-
 export const csvGenericParser: FormatParser = {
   format: 'csv-generic',
 
-  parseWorkbook(workbook: any, _fileName: string): ImportResult | null {
-    const sheetName = workbook.SheetNames[0]
-    const sheet = workbook.Sheets[sheetName]
-    const rows: any[][] = SHEETJS.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+  parseWorkbook(workbook: ParsedWorkbook, _fileName: string): ImportResult | null {
+    const rows: unknown[][] = getSheetRows(workbook)
 
     if (rows.length < 2) return null
 

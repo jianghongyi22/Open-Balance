@@ -13,20 +13,19 @@ import type { ImportResult } from '../src/importer/types'
 
 const TEST_DATA_DIR = join(process.cwd(), 'test-data')
 
-function loadFixture(fileName: string): { fileName: string; rawText: string; workbook: any } {
+async function loadFixture(fileName: string): Promise<{ fileName: string; rawText: string; workbook: any }> {
   const p = join(TEST_DATA_DIR, fileName)
   const buf = readFileSync(p)
-  // Same decode path as the browser: UTF-8 first, GBK fallback,
-  // CSV parsed with raw: true.
-  const { rawText, workbook } = parseSpreadsheetBytes(
+  // Same decode path as the browser: UTF-8 first, GBK fallback
+  const { rawText, workbook } = await parseSpreadsheetBytes(
     buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength),
     fileName
   )
   return { fileName, rawText, workbook }
 }
 
-function importFixture(fileName: string): { format: string; result: ImportResult } {
-  const { fileName: name, rawText, workbook } = loadFixture(fileName)
+async function importFixture(fileName: string): Promise<{ format: string; result: ImportResult }> {
+  const { fileName: name, rawText, workbook } = await loadFixture(fileName)
   return processImport({ fileName: name, rawText, workbook })
 }
 
@@ -34,12 +33,22 @@ function sumAssets(result: ImportResult): number {
   return result.assets.reduce((s, a) => s + a.marketValue, 0)
 }
 
+// 顶置加载全部 fixture（ESM top-level await，vitest 支持）
+const wechat = await importFixture('wechat-bill.csv')
+const alipay = await importFixture('alipay-bill.csv')
+const suishouji = await importFixture('suishouji.csv')
+const cmb = await importFixture('cmb-bank-statement.csv')
+const generic = await importFixture('generic-assets.csv')
+const backup = await importFixture('open-balance-backup.json')
+const empty = await importFixture('empty.csv')
+const unknownTable = await importFixture('unknown-table.csv')
+
 // ------------------------------------------------------------
 // 1. 微信支付账单
 // ------------------------------------------------------------
 
 describe('微信支付账单 (wechat-bill.csv)', () => {
-  const { format, result } = importFixture('wechat-bill.csv')
+  const { format, result } = wechat
 
   it('应检测为 wechat 格式', () => {
     expect(format).toBe('wechat')
@@ -82,7 +91,7 @@ describe('微信支付账单 (wechat-bill.csv)', () => {
 // ------------------------------------------------------------
 
 describe('支付宝账单 (alipay-bill.csv)', () => {
-  const { format, result } = importFixture('alipay-bill.csv')
+  const { format, result } = alipay
 
   it('应检测为 alipay 格式', () => {
     expect(format).toBe('alipay')
@@ -124,7 +133,7 @@ describe('支付宝账单 (alipay-bill.csv)', () => {
 // ------------------------------------------------------------
 
 describe('随手记 (suishouji.csv)', () => {
-  const { format, result } = importFixture('suishouji.csv')
+  const { format, result } = suishouji
 
   it('应检测为 suishouji 格式', () => {
     expect(format).toBe('suishouji')
@@ -163,7 +172,7 @@ describe('随手记 (suishouji.csv)', () => {
 // ------------------------------------------------------------
 
 describe('银行流水 (cmb-bank-statement.csv)', () => {
-  const { format, result } = importFixture('cmb-bank-statement.csv')
+  const { format, result } = cmb
 
   it('应检测为 bank-generic 格式', () => {
     expect(format).toBe('bank-generic')
@@ -196,7 +205,7 @@ describe('银行流水 (cmb-bank-statement.csv)', () => {
 // ------------------------------------------------------------
 
 describe('通用 CSV (generic-assets.csv)', () => {
-  const { format, result } = importFixture('generic-assets.csv')
+  const { format, result } = generic
 
   it('应检测为 csv-generic 格式', () => {
     expect(format).toBe('csv-generic')
@@ -244,7 +253,7 @@ describe('通用 CSV (generic-assets.csv)', () => {
 // ------------------------------------------------------------
 
 describe('Open-Balance 备份 (open-balance-backup.json)', () => {
-  const { format, result } = importFixture('open-balance-backup.json')
+  const { format, result } = backup
 
   it('应检测为 open-balance-json 格式', () => {
     expect(format).toBe('open-balance-json')
@@ -269,14 +278,14 @@ describe('Open-Balance 备份 (open-balance-backup.json)', () => {
 
 describe('兜底路径', () => {
   it('空 CSV 应返回空结果 + 警告，不抛异常', () => {
-    const { format, result } = importFixture('empty.csv')
+    const { format, result } = empty
     expect(format).toBe('csv-generic')
     expect(result.assets).toHaveLength(0)
     expect(result.warnings.length).toBeGreaterThan(0)
   })
 
   it('无法识别的表格应落到 csv-generic', () => {
-    const { format } = importFixture('unknown-table.csv')
+    const { format } = unknownTable
     expect(format).toBe('csv-generic')
   })
 })

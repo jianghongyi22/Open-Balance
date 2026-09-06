@@ -4,10 +4,9 @@
 // detectAndImport(file) → { format, result, rawText }
 //
 // The core pipeline is exposed as `processImport()` so tests can
-// feed it a workbook + raw text without browser File APIs.
+// feed it a parsed workbook + raw text without browser File APIs.
 // ============================================================
 
-import * as XLSX from 'xlsx'
 import { detectFormat } from './detector'
 import { openBalanceJsonParser } from './parsers/json'
 import { wechatParser } from './parsers/wechat'
@@ -15,9 +14,9 @@ import { alipayParser } from './parsers/alipay'
 import { suishoujiParser } from './parsers/suishouji'
 import { bankFlowParser } from './parsers/bank-flow'
 import { csvGenericParser } from './parsers/csv-generic'
+import { parseSpreadsheetBytes, getSheetRows } from './spreadsheet'
+import type { ParsedWorkbook } from './spreadsheet'
 import type { ImportFormat, ImportResult, FormatParser } from './types'
-
-const SHEETJS = XLSX
 
 const PARSERS: FormatParser[] = [
   openBalanceJsonParser,
@@ -28,60 +27,10 @@ const PARSERS: FormatParser[] = [
   csvGenericParser,
 ]
 
-/**
- * Decode a byte buffer to text: UTF-8 first, GBK fallback.
- * Chinese bank/accounting exports are frequently GBK-encoded.
- */
-export function decodeText(buffer: ArrayBuffer): string {
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(buffer)
-  } catch {
-    try {
-      return new TextDecoder('gbk').decode(buffer)
-    } catch {
-      // Last resort: latin-1 never throws, so at least we get something
-      return new TextDecoder('utf-8').decode(buffer)
-    }
-  }
-}
-
-/**
- * Parse spreadsheet bytes into { rawText, workbook }.
- *
- * CSV is decoded to text first (UTF-8/GBK) and parsed with raw: true
- * so date strings & IDs stay strings. XLS/XLSX are binary and go
- * straight to XLSX.read — dates there come back as Excel serial
- * numbers, which `toDateStr` handles.
- */
-export function parseSpreadsheetBytes(
-  buffer: ArrayBuffer,
-  fileName: string
-): { rawText: string; workbook: any } {
-  const ext = fileName.toLowerCase().split('.').pop() ?? ''
-  const rawText = decodeText(buffer)
-
-  if (!['csv', 'xls', 'xlsx'].includes(ext)) {
-    return { rawText, workbook: null }
-  }
-
-  let workbook: any = null
-  try {
-    if (ext === 'csv') {
-      workbook = SHEETJS.read(rawText, { type: 'string', raw: true })
-    } else {
-      workbook = SHEETJS.read(buffer, { type: 'array' })
-    }
-  } catch {
-    workbook = null
-  }
-
-  return { rawText, workbook }
-}
-
 export interface ProcessImportInput {
   fileName: string
   rawText: string
-  workbook: any // XLSX.WorkBook, or null for non-spreadsheet files
+  workbook: ParsedWorkbook | null
 }
 
 /**
@@ -99,18 +48,15 @@ export function processImport(input: ProcessImportInput): {
   let sheetPreview: { firstRowValues: string[] } | undefined
 
   if (workbook) {
-    sheetHeaders = workbook.SheetNames.map((name: string) => {
-      const sheet = workbook.Sheets[name]
-      const rows: any[][] = SHEETJS.utils.sheet_to_json(sheet, { header: 1, defval: '' })
-      return {
-        sheetName: name,
-        headers: rows.length > 0 ? (rows[0] as string[]).map((h) => String(h)) : [],
-        rowCount: rows.length,
-      }
-    })
-    const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-    const firstRows: any[][] = SHEETJS.utils.sheet_to_json(firstSheet, { header: 1, defval: '', range: 1 })
-    sheetPreview = { firstRowValues: (firstRows[0] ?? []).map((c) => String(c)) }
+    sheetHeaders = workbook.sheets.map((s) => ({
+      sheetName: s.name,
+      headers: s.rows.length > 0 ? s.rows[0].map((h) => String(h)) : [],
+      rowCount: s.rows.length,
+    }))
+    const firstRows = getSheetRows(workbook)
+    sheetPreview = {
+      firstRowValues: (firstRows[1] ?? []).map((c) => String(c)),
+    }
   }
 
   // Detect format
@@ -174,7 +120,7 @@ export async function detectAndImport(file: File): Promise<{
 }> {
   const fileName = file.name
   const buffer = await readFileAsArrayBuffer(file)
-  const { rawText, workbook } = parseSpreadsheetBytes(buffer, fileName)
+  const { rawText, workbook } = await parseSpreadsheetBytes(buffer, fileName)
 
   const { format, result } = processImport({ fileName, rawText, workbook })
   return { format, result, rawText }
@@ -184,8 +130,8 @@ export async function detectAndImport(file: File): Promise<{
  * Re-parse a workbook with a specific column mapping (for csv-generic).
  */
 export function importWithColumnMap(
-  workbook: any,
-  _columnMap: any,
+  workbook: ParsedWorkbook,
+  _columnMap: unknown,
   fileName: string
 ): ImportResult {
   // csvGenericParser uses autoMapColumns internally;
@@ -212,7 +158,9 @@ function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
 
 // Re-export for convenience
 export { detectFormat } from './detector'
-export { transactionsToAssets, detectLiabilities } from './converter'
+export { transactionsToAssets, detectLiabilities, extractIssuer } from './converter'
 export { autoMapColumns, COLUMN_FIELDS, headerOptions } from './column-mapper'
 export { IMPORT_FORMAT_LABELS } from './types'
+export { parseSpreadsheetBytes, parseCSV, getSheetRows, decodeText } from './spreadsheet'
+export type { ParsedWorkbook, ParsedSheet } from './spreadsheet'
 export type { ImportFormat, ImportResult, RawTransaction, ColumnMap, ImportStats } from './types'
