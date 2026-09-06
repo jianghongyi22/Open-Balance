@@ -11,6 +11,7 @@ import { categoryBreakdown, netWorth, emergencyMonths, debtToIncome, leverageRat
 import { ASSET_CATEGORY_LABELS, ASSET_CATEGORY_ORDER } from '../types'
 import { CATEGORY_COLORS } from '../data/marketParams'
 import { formatCNY } from '../utils/format'
+import DisclaimerBanner from '../components/DisclaimerBanner'
 
 const { Title, Text } = Typography
 
@@ -100,6 +101,7 @@ export default function Dashboard() {
 
   return (
     <div>
+      <DisclaimerBanner compact />
       <Row gutter={[16, 16]}>
         {/* Hero: Net Worth + Grade */}
         <Col span={24}>

@@ -11,6 +11,7 @@ import { CHECK_SEVERITY_LABELS, CHECK_STATUS_LABELS, EVIDENCE_LEVEL_LABELS } fro
 import type { CheckResult, CheckStatus } from '../types'
 import { netWorth } from '../engine/metrics'
 import { formatCNY } from '../utils/format'
+import DisclaimerBanner from '../components/DisclaimerBanner'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -114,7 +115,7 @@ export default function Report() {
       <Paragraph type="secondary" style={{ marginBottom: 8 }}>{check.description}</Paragraph>
       <Descriptions size="small" column={2}>
         <Descriptions.Item label="框架依据">{check.framework || '—'}</Descriptions.Item>
-        <Descriptions.Item label="实测值">{check.measuredLabel}</Descriptions.Item>
+        <Descriptions.Item label="实测值">{check.measuredLabel}{check.layer === 'quantitative' && check.id !== 'Q15' ? '（估算）' : ''}</Descriptions.Item>
         <Descriptions.Item label="阈值标准" span={2}>{check.threshold}</Descriptions.Item>
         {check.rangeValue && (
           <Descriptions.Item label="区间估计" span={2}>
@@ -143,6 +144,9 @@ export default function Report() {
 
   return (
     <div>
+      {/* 常驻免责声明 */}
+      <DisclaimerBanner />
+
       {/* Grade Banner */}
       <Card
         style={{
@@ -158,6 +162,9 @@ export default function Report() {
               <div>
                 <Title level={3} style={{ margin: 0, color: gradeColor }}>
                   诊断等级：{report.grade}级 — {report.gradeLabel}
+                  <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                    （仅用于教育演示，不构成适当性结论）
+                  </Text>
                 </Title>
                 <Text type="secondary">
                   综合评分 {report.overallScore}/100 · 定性 {report.qualitativeScore}分 · 定量 {report.quantitativeScore}分

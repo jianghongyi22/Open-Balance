@@ -9,6 +9,7 @@ import { applyShocks, runScenario, SCENARIO_PRESETS } from '../scenario'
 import { diagnose } from '../engine'
 import type { ScenarioShocks, ScenarioResult, CheckStatus } from '../types'
 import { CHECK_STATUS_LABELS } from '../types'
+import DisclaimerBanner from '../components/DisclaimerBanner'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -64,6 +65,7 @@ export default function ScenarioLab() {
 
   return (
     <div>
+      <DisclaimerBanner compact />
       <Title level={4}>情景分析实验室</Title>
       <Paragraph type="secondary">
         通过调整市场参数模拟不同经济情景下您的资产表现，帮助您了解组合的脆弱点和韧性
