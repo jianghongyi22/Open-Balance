@@ -1,0 +1,16 @@
+# 依赖自动更新：每月检查 npm 依赖，自动提 PR
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels:
+      - security
+    groups:
+      # 开发依赖合并成一个 PR，减少噪音
+      dev-dependencies:
+        dependency-type: development
+        patterns:
+          - '*'

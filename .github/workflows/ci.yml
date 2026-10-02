@@ -16,6 +16,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # 依赖安全门禁：高危及以上漏洞直接红
+      - run: npm audit --audit-level=high
