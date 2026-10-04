@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Row, Col, Card, Typography, Tag, Progress, Empty, Collapse, Space, Statistic, Descriptions } from 'antd'
+import { Row, Col, Card, Typography, Tag, Progress, Empty, Collapse, Space, Statistic, Descriptions, Button } from 'antd'
 import {
   CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined,
-  TrophyOutlined, WarningOutlined,
+  TrophyOutlined, WarningOutlined, PrinterOutlined,
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { useStore } from '../store'
@@ -146,6 +146,16 @@ export default function Report() {
     <div>
       {/* 常驻免责声明 */}
       <DisclaimerBanner />
+
+      {/* 打印工具行（打印时隐藏） */}
+      <Space className="print-hide" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
+          打印报告 / 另存为 PDF
+        </Button>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          报告生成于 {new Date(report.generatedAt).toLocaleString('zh-CN')} · 教育演示用途，不构成投资建议
+        </Text>
+      </Space>
 
       {/* Grade Banner */}
       <Card

@@ -1,0 +1,48 @@
+/* ============================================================
+   Open-Balance: 打印样式
+   诊断报告一键打印为 A4 报告（浏览器打印 → 另存为 PDF）
+   ============================================================ */
+
+@media print {
+  /* 隐藏导航与交互元素 */
+  .ant-layout-sider,
+  .ant-layout-header,
+  .print-hide,
+  .ant-collapse-header,
+  .ant-btn {
+    display: none !important;
+  }
+
+  /* 全宽内容 */
+  .ant-layout-content {
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .ant-layout {
+    background: #fff !important;
+  }
+
+  /* 卡片紧凑排版 */
+  .ant-card {
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* 折叠内容展开（详细分析在打印时可见） */
+  .ant-collapse-content,
+  .ant-collapse-content-box {
+    display: block !important;
+    height: auto !important;
+  }
+
+  /* 评分环/图表页断控制 */
+  .echarts-for-react {
+    page-break-inside: avoid;
+  }
+
+  h4.ant-typography {
+    page-break-after: avoid;
+  }
+}
