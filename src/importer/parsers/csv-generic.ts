@@ -8,7 +8,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import type { Asset, AssetCategory } from '../../types'
 import { ASSET_CATEGORY_LABELS } from '../../types'
-import type { ImportResult, FormatParser } from '../types'
+import type { ImportResult, FormatParser, ColumnMap } from '../types'
 import { getSheetRows } from '../spreadsheet'
 import type { ParsedWorkbook } from '../spreadsheet'
 import { autoMapColumns } from '../column-mapper'
@@ -18,16 +18,17 @@ import { CATEGORY_LIQUIDITY, CATEGORY_RISK_CLASS } from '../../data/marketParams
 export const csvGenericParser: FormatParser = {
   format: 'csv-generic',
 
-  parseWorkbook(workbook: ParsedWorkbook, _fileName: string): ImportResult | null {
+  parseWorkbook(workbook: ParsedWorkbook, _fileName: string, columnMap?: ColumnMap): ImportResult | null {
     const rows: unknown[][] = getSheetRows(workbook)
 
     if (rows.length < 2) return null
 
     const headers = (rows[0] as string[]).map((h: string) => String(h).trim())
-    const columnMap = autoMapColumns(headers)
+    // 优先使用用户指定的列映射（UI 手动纠正），否则自动匹配
+    const effectiveMap = columnMap ?? autoMapColumns(headers)
 
     // Need at minimum a name column or an amount column to proceed
-    if (!columnMap.nameCol && !columnMap.amountCol) return null
+    if (!effectiveMap.nameCol && !effectiveMap.amountCol) return null
 
     const assets: Asset[] = []
     const warnings: string[] = []
@@ -46,13 +47,13 @@ export const csvGenericParser: FormatParser = {
       const row = rows[i]
       if (!row || row.length === 0) continue
 
-      const nameStr = getValue(columnMap.nameCol, row)
-      const amountStr = getValue(columnMap.amountCol, row).replace(/[,，\s¥$]/g, '')
-      const categoryStr = getValue(columnMap.categoryCol, row)
-      const subCategoryStr = getValue(columnMap.subCategoryCol, row)
-      const currencyStr = getValue(columnMap.currencyCol, row)
-      const institutionStr = getValue(columnMap.institutionCol, row)
-      const notesStr = getValue(columnMap.notesCol, row)
+      const nameStr = getValue(effectiveMap.nameCol, row)
+      const amountStr = getValue(effectiveMap.amountCol, row).replace(/[,，\s¥$]/g, '')
+      const categoryStr = getValue(effectiveMap.categoryCol, row)
+      const subCategoryStr = getValue(effectiveMap.subCategoryCol, row)
+      const currencyStr = getValue(effectiveMap.currencyCol, row)
+      const institutionStr = getValue(effectiveMap.institutionCol, row)
+      const notesStr = getValue(effectiveMap.notesCol, row)
 
       const amount = parseFloat(amountStr)
       if (!nameStr && isNaN(amount)) continue

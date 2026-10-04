@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { processImport, parseSpreadsheetBytes } from '../src/importer/index'
+import { processImport, parseSpreadsheetBytes, parseCSV, autoMapColumns } from '../src/importer/index'
 import type { ImportResult } from '../src/importer/types'
 
 // ============================================================
@@ -287,5 +287,41 @@ describe('兜底路径', () => {
   it('无法识别的表格应落到 csv-generic', () => {
     const { format } = unknownTable
     expect(format).toBe('csv-generic')
+  })
+})
+
+// ------------------------------------------------------------
+// 8. 通用 CSV 自定义列映射（Issue #17）
+// ------------------------------------------------------------
+
+describe('自定义列映射 (Issue #17)', () => {
+
+  it('自动匹配失败的非标准表头可用自定义映射纠正', () => {
+    const rows = parseCSV('产品,金额,类别\n某某理财,12345,银行理财\n')
+    const workbook = { sheets: [{ name: 'Sheet1', rows }] }
+    // 非标准表头（产品/金额/类别）不在自动匹配候选列表中
+    expect(autoMapColumns(['产品', '金额', '类别']).nameCol).toBeNull()
+
+    const customMap = {
+      nameCol: '产品', amountCol: '金额', categoryCol: '类别',
+      subCategoryCol: null, currencyCol: null, institutionCol: null, notesCol: null,
+    }
+    const { format, result } = processImport({
+      fileName: 'x.csv', rawText: '', workbook, columnMap: customMap,
+    })
+    expect(format).toBe('csv-generic')
+    expect(result.assets).toHaveLength(1)
+    expect(result.assets[0].name).toBe('某某理财')
+    expect(result.assets[0].marketValue).toBe(12345)
+    expect(result.assets[0].category).toBe('fixed_income')
+  })
+
+  it('自定义映射缺省时应回退到自动匹配', () => {
+    const rows = parseCSV('名称,金额,大类\n活期,1000,现金及存款\n')
+    const workbook = { sheets: [{ name: 'Sheet1', rows }] }
+    const { result } = processImport({ fileName: 'x.csv', rawText: '', workbook, columnMap: null })
+    expect(result.assets).toHaveLength(1)
+    expect(result.assets[0].name).toBe('活期')
+    expect(result.assets[0].category).toBe('cash_deposit')
   })
 })

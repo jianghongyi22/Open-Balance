@@ -16,7 +16,7 @@ import { bankFlowParser } from './parsers/bank-flow'
 import { csvGenericParser } from './parsers/csv-generic'
 import { parseSpreadsheetBytes, getSheetRows } from './spreadsheet'
 import type { ParsedWorkbook } from './spreadsheet'
-import type { ImportFormat, ImportResult, FormatParser } from './types'
+import type { ImportFormat, ImportResult, FormatParser, ColumnMap } from './types'
 
 const PARSERS: FormatParser[] = [
   openBalanceJsonParser,
@@ -31,6 +31,8 @@ export interface ProcessImportInput {
   fileName: string
   rawText: string
   workbook: ParsedWorkbook | null
+  /** 通用 CSV 的用户自定义列映射（可选，缺省自动匹配） */
+  columnMap?: ColumnMap | null
 }
 
 /**
@@ -40,8 +42,10 @@ export interface ProcessImportInput {
 export function processImport(input: ProcessImportInput): {
   format: ImportFormat
   result: ImportResult
+  /** 首行表头（供通用 CSV 列映射 UI 使用） */
+  headers: string[]
 } {
-  const { fileName, rawText, workbook } = input
+  const { fileName, rawText, workbook, columnMap } = input
 
   // Get header info for detection
   let sheetHeaders: { sheetName: string; headers: string[]; rowCount: number }[] = []
@@ -69,7 +73,7 @@ export function processImport(input: ProcessImportInput): {
   const specificParser = PARSERS.find((p) => p.format === format)
   if (specificParser) {
     if (workbook) {
-      result = specificParser.parseWorkbook(workbook, fileName)
+      result = specificParser.parseWorkbook(workbook, fileName, columnMap ?? undefined)
     }
     if (!result && specificParser.parseText) {
       result = specificParser.parseText(rawText, fileName)
@@ -82,7 +86,7 @@ export function processImport(input: ProcessImportInput): {
       if (parser.format === format) continue // already tried
 
       if (workbook) {
-        result = parser.parseWorkbook(workbook, fileName)
+        result = parser.parseWorkbook(workbook, fileName, columnMap ?? undefined)
       }
       if (!result && parser.parseText) {
         result = parser.parseText(rawText, fileName)
@@ -93,7 +97,7 @@ export function processImport(input: ProcessImportInput): {
 
   // Ultimate fallback: generic CSV parser with workbook
   if (!result && workbook) {
-    result = csvGenericParser.parseWorkbook(workbook, fileName)
+    result = csvGenericParser.parseWorkbook(workbook, fileName, columnMap ?? undefined)
   }
 
   if (!result) {
@@ -106,7 +110,11 @@ export function processImport(input: ProcessImportInput): {
     }
   }
 
-  return { format, result }
+  return {
+    format,
+    result,
+    headers: sheetHeaders[0]?.headers ?? [],
+  }
 }
 
 /**
@@ -117,13 +125,15 @@ export async function detectAndImport(file: File): Promise<{
   format: ImportFormat
   result: ImportResult
   rawText: string
+  workbook: ParsedWorkbook | null
+  headers: string[]
 }> {
   const fileName = file.name
   const buffer = await readFileAsArrayBuffer(file)
   const { rawText, workbook } = await parseSpreadsheetBytes(buffer, fileName)
 
-  const { format, result } = processImport({ fileName, rawText, workbook })
-  return { format, result, rawText }
+  const { format, result, headers } = processImport({ fileName, rawText, workbook })
+  return { format, result, rawText, workbook, headers }
 }
 
 /**
@@ -131,12 +141,10 @@ export async function detectAndImport(file: File): Promise<{
  */
 export function importWithColumnMap(
   workbook: ParsedWorkbook,
-  _columnMap: unknown,
+  columnMap: ColumnMap,
   fileName: string
 ): ImportResult {
-  // csvGenericParser uses autoMapColumns internally;
-  // for now we just call it directly
-  return csvGenericParser.parseWorkbook(workbook, fileName) ?? {
+  return csvGenericParser.parseWorkbook(workbook, fileName, columnMap) ?? {
     format: 'csv-generic',
     assets: [],
     transactions: [],

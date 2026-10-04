@@ -71,8 +71,9 @@ export function detectFormat(
   if (sszCols.filter((c) => allHeadersStr.includes(c)).length >= 3) {
     return 'suishouji'
   }
-  // Another common suishouji pattern: 日期, 类别, 金额, 账户
-  const sszCols2 = ['类别', '金额', '账户1']
+  // Another common suishouji pattern: 日期, 类别, 金额, 账户1
+  // 收紧条件：必须同时出现 类别+账户1（"金额"太通用，单独出现易误判）
+  const sszCols2 = ['类别', '账户1']
   if (sszCols2.filter((c) => allHeadersStr.includes(c)).length >= 2) {
     return 'suishouji'
   }

@@ -7,14 +7,28 @@ import {
   InboxOutlined, FileTextOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
-import { detectAndImport } from '../importer'
+import { detectAndImport, importWithColumnMap, autoMapColumns } from '../importer'
 import { IMPORT_FORMAT_LABELS } from '../importer'
-import type { ImportFormat, ImportResult } from '../importer/types'
+import type { ImportFormat, ImportResult, ColumnMap } from '../importer/types'
+import type { ParsedWorkbook } from '../importer/spreadsheet'
+import ColumnMappingTable from './ColumnMappingTable'
 import { useStore } from '../store'
 import { formatCNY } from '../utils/format'
 
 const { Title, Text, Paragraph } = Typography
 const { Dragger } = Upload
+
+/** 简单字符串哈希（djb2），用于列映射按表头签名持久化 */
+function hashHeaders(headers: string[]): string {
+  const key = headers.join('|')
+  let h = 5381
+  for (let i = 0; i < key.length; i++) {
+    h = ((h << 5) + h + key.charCodeAt(i)) >>> 0
+  }
+  return h.toString(36)
+}
+
+const COLUMN_MAP_KEY_PREFIX = 'open-balance-colmap-'
 
 interface ImportModalProps {
   open: boolean
@@ -28,6 +42,10 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
   const [fileName, setFileName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 通用 CSV 列映射（用户可纠正）
+  const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null)
+  const [headers, setHeaders] = useState<string[]>([])
+  const [columnMap, setColumnMap] = useState<ColumnMap | null>(null)
 
   const { importAssets, importLiabilities, setProfile } = useStore()
 
@@ -37,9 +55,23 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
     setFileName(file.name)
 
     try {
-      const { format: fmt, result: res } = await detectAndImport(file)
+      const { format: fmt, result: res, workbook: wb, headers: hdrs } = await detectAndImport(file)
       setFormat(fmt)
       setResult(res)
+      setWorkbook(wb)
+      setHeaders(hdrs)
+      // 通用 CSV：加载用户保存过的映射，否则用自动匹配结果
+      if (fmt === 'csv-generic' && hdrs.length > 0) {
+        const savedKey = COLUMN_MAP_KEY_PREFIX + hashHeaders(hdrs)
+        try {
+          const saved = localStorage.getItem(savedKey)
+          setColumnMap(saved ? (JSON.parse(saved) as ColumnMap) : autoMapColumns(hdrs))
+        } catch {
+          setColumnMap(autoMapColumns(hdrs))
+        }
+      } else {
+        setColumnMap(null)
+      }
       setStage(1)
     } catch (e: any) {
       setError(e.message || '文件解析失败，请尝试其他格式')
@@ -48,6 +80,19 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
     }
 
     return false // Prevent upload
+  }
+
+  const handleColumnMapChange = (map: ColumnMap) => {
+    setColumnMap(map)
+    if (!workbook) return
+    // 按表头签名持久化，下次同类文件复用
+    try {
+      localStorage.setItem(COLUMN_MAP_KEY_PREFIX + hashHeaders(headers), JSON.stringify(map))
+    } catch {
+      // 存储失败不阻塞
+    }
+    const reparse = importWithColumnMap(workbook, map, fileName)
+    setResult(reparse)
   }
 
   const handleConfirm = () => {
@@ -174,6 +219,17 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
             )}
           </Descriptions>
         </Card>
+
+        {/* 通用 CSV：可编辑列映射 */}
+        {format === 'csv-generic' && headers.length > 0 && columnMap && (
+          <Card title="列映射（自动匹配结果，可手动纠正）" size="small" style={{ marginBottom: 16 }}>
+            <ColumnMappingTable
+              headers={headers}
+              columnMap={columnMap}
+              onChange={handleColumnMapChange}
+            />
+          </Card>
+        )}
 
         {/* Warnings */}
         {result.warnings.length > 0 && (
