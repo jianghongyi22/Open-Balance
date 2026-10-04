@@ -7,7 +7,7 @@ import {
 } from '../src/engine/metrics'
 import { SAMPLE_ASSETS, SAMPLE_LIABILITIES, SAMPLE_PROFILE } from '../src/data/sampleData'
 import { generateRecommendations } from '../src/engine/recommendations'
-import { applyShocks, runScenario } from '../src/scenario'
+import { applyShocks } from '../src/scenario'
 import type { Snapshot, Asset, Liability, HouseholdProfile } from '../src/types'
 
 // --- Test Helpers ---
