@@ -16,13 +16,20 @@ import DisclaimerBanner from '../components/DisclaimerBanner'
 const { Title, Text, Paragraph } = Typography
 
 export default function Report() {
-  const { assets, liabilities, profile } = useStore()
+  const { assets, liabilities, profile, snapshots } = useStore()
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: profile! }), [assets, liabilities, profile])
   const report = useMemo(() => diagnose(snapshot), [snapshot])
   const totalNW = useMemo(() => netWorth(snapshot), [snapshot])
 
   if (!profile) return <Empty description="请先完成引导" />
+
+  // 与上次诊断对比：取最近一条非今日快照
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const prevSnapshot = [...snapshots]
+    .reverse()
+    .find((s) => s.date.slice(0, 10) !== todayStr)
+  const scoreDelta = prevSnapshot ? report.overallScore - prevSnapshot.overallScore : null
 
   const gradeColor =
     report.grade === 'A' ? '#52c41a' :
@@ -153,7 +160,22 @@ export default function Report() {
           打印报告 / 另存为 PDF
         </Button>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          报告生成于 {new Date(report.generatedAt).toLocaleString('zh-CN')} · 教育演示用途，不构成投资建议
+          报告生成于 {new Date(report.generatedAt).toLocaleString('zh-CN')}
+          {scoreDelta !== null && prevSnapshot && (
+            <Text style={{ marginLeft: 12 }}>
+              较上次（{prevSnapshot.date.slice(0, 10)}）：
+              <Text
+                strong
+                style={{
+                  color: scoreDelta > 0 ? '#52c41a' : scoreDelta < 0 ? '#ff4d4f' : 'inherit',
+                  marginLeft: 4,
+                }}
+              >
+                {scoreDelta > 0 ? '+' : ''}{scoreDelta} 分
+              </Text>
+            </Text>
+          )}
+          {' · '}教育演示用途，不构成投资建议
         </Text>
       </Space>
 

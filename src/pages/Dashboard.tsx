@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { Row, Col, Card, Statistic, Tag, Typography, Empty, Button, Space } from 'antd'
 import {
   WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined,
@@ -17,12 +17,29 @@ const { Title, Text } = Typography
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { assets, liabilities, profile } = useStore()
+  const { assets, liabilities, profile, snapshots, addSnapshot } = useStore()
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: profile! }), [assets, liabilities, profile])
   const report = useMemo(() => diagnose(snapshot), [snapshot])
   const breakdown = useMemo(() => categoryBreakdown(assets), [assets])
   const totalNW = useMemo(() => netWorth(snapshot), [snapshot])
+
+  // 每次进入总览自动记录一条诊断快照（同一天内去重替换）
+  useEffect(() => {
+    if (!profile || assets.length === 0) return
+    addSnapshot({
+      date: new Date().toISOString(),
+      overallScore: report.overallScore,
+      grade: report.grade,
+      gradeLabel: report.gradeLabel,
+      netWorth: totalNW,
+      totalAssets: assets.reduce((s, a) => s + a.marketValue, 0),
+      totalLiabilities: liabilities.reduce((s, l) => s + l.remainingPrincipal, 0),
+      qualitativeScore: report.qualitativeScore,
+      quantitativeScore: report.quantitativeScore,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在数据/报告变化时记录
+  }, [report, totalNW])
   const em = useMemo(() => emergencyMonths(snapshot), [snapshot])
   const dti = useMemo(() => debtToIncome(snapshot), [snapshot])
   const lev = useMemo(() => leverageRatio(snapshot), [snapshot])
@@ -97,6 +114,33 @@ export default function Dashboard() {
 
   const gradeColor = report.grade === 'A' ? '#52c41a' : report.grade === 'B' ? '#1890ff' : report.grade === 'C' ? '#faad14' : '#ff4d4f'
 
+  const trendOption = {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['净资产', '综合评分'] },
+    grid: { left: 60, right: 50, top: 36, bottom: 28 },
+    xAxis: {
+      type: 'category',
+      data: snapshots.map((s) => s.date.slice(5, 10)),
+    },
+    yAxis: [
+      { type: 'value', name: '净资产', axisLabel: { formatter: (v: number) => `${(v / 10000).toFixed(0)}万` } },
+      { type: 'value', name: '评分', min: 0, max: 100 },
+    ],
+    series: [
+      {
+        name: '净资产', type: 'line', smooth: true,
+        data: snapshots.map((s) => s.netWorth),
+        itemStyle: { color: '#1E5EFF' },
+        areaStyle: { color: 'rgba(30, 94, 255, 0.08)' },
+      },
+      {
+        name: '综合评分', type: 'line', smooth: true, yAxisIndex: 1,
+        data: snapshots.map((s) => s.overallScore),
+        itemStyle: { color: gradeColor },
+      },
+    ],
+  }
+
   if (!profile) return <Empty description="请先完成引导" />
 
   return (
@@ -160,6 +204,15 @@ export default function Dashboard() {
               valueStyle={{ color: lr >= 0.15 ? '#52c41a' : lr >= 0.08 ? '#faad14' : '#ff4d4f' }} />
           </Card>
         </Col>
+
+        {/* Net Worth & Score Trend */}
+        {snapshots.length >= 2 && (
+          <Col span={24}>
+            <Card title="净值与评分趋势">
+              <ReactECharts option={trendOption} style={{ height: 240 }} />
+            </Card>
+          </Col>
+        )}
 
         {/* Allocation Donut */}
         <Col xs={24} md={12}>

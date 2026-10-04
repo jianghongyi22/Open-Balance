@@ -12,6 +12,7 @@ import type {
   Liability,
   HouseholdProfile,
   ScenarioShocks,
+  NetWorthSnapshot,
 } from '../types'
 import {
   SAMPLE_ASSETS,
@@ -34,6 +35,10 @@ export interface AppStore {
   // Scenario Lab
   activeShocks: ScenarioShocks
   setActiveShocks: (shocks: ScenarioShocks) => void
+
+  // 净值快照历史（诊断轨迹）
+  snapshots: NetWorthSnapshot[]
+  addSnapshot: (snapshot: Omit<NetWorthSnapshot, 'id'>) => void
 
   // Actions: Assets
   addAsset: (asset: Omit<Asset, 'id'>) => void
@@ -70,6 +75,15 @@ const DEFAULT_SHOCKS: ScenarioShocks = {
   incomeInterruptionMonths: 0,
 }
 
+/** 持久化版本迁移链（v2 → v3：新增 snapshots 历史字段） */
+export function migratePersistedState(persistedState: unknown): AppStore {
+  const state = persistedState as Partial<AppStore>
+  if (!Array.isArray(state.snapshots)) {
+    state.snapshots = []
+  }
+  return state as AppStore
+}
+
 // --- Store ---
 
 export const useStore = create<AppStore>()(
@@ -82,8 +96,20 @@ export const useStore = create<AppStore>()(
       onboardingComplete: false,
       onboardingStep: 0,
       activeShocks: DEFAULT_SHOCKS,
+      snapshots: [],
 
       setActiveShocks: (shocks) => set({ activeShocks: shocks }),
+
+      addSnapshot: (snapshot) =>
+        set((state) => {
+          const day = snapshot.date.slice(0, 10)
+          // 同一天内已有快照则替换，避免重复渲染产生噪音
+          const others = state.snapshots.filter((s) => s.date.slice(0, 10) !== day)
+          const next = [...others, { ...snapshot, id: uuidv4() }]
+            .sort((a, b) => a.date.localeCompare(b.date))
+          // 上限 100 条，淘汰最旧
+          return { snapshots: next.slice(-100) }
+        }),
 
       // --- Assets ---
       addAsset: (asset) =>
@@ -164,6 +190,7 @@ export const useStore = create<AppStore>()(
           onboardingComplete: false,
           onboardingStep: 0,
           activeShocks: DEFAULT_SHOCKS,
+          snapshots: [],
         }),
 
       exportData: () => {
@@ -177,12 +204,9 @@ export const useStore = create<AppStore>()(
     }),
     {
       name: 'open-balance-store',
-      version: 2,
-      // 版本迁移链：未来数据模型变更在此逐级升级
-      migrate: (persistedState: unknown) => {
-        // v1 → v2：暂无字段变更，透传
-        return persistedState as AppStore
-      },
+      version: 3,
+      // 版本迁移链：数据模型变更在此逐级升级
+      migrate: migratePersistedState,
       storage: createJSONStorage(() => ({
         getItem: (name: string) => {
           const raw = localStorage.getItem(name)

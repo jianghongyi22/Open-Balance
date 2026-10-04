@@ -280,6 +280,22 @@ export interface ScenarioResult {
   }[]
 }
 
+// --- Net Worth Snapshot (诊断历史) ---
+
+export interface NetWorthSnapshot {
+  id: string
+  /** ISO 时间戳 */
+  date: string
+  overallScore: number
+  grade: Grade
+  gradeLabel: string
+  netWorth: number
+  totalAssets: number
+  totalLiabilities: number
+  qualitativeScore: number
+  quantitativeScore: number
+}
+
 // --- Snapshot (engine input) ---
 
 export interface Snapshot {
