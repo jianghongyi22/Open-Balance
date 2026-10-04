@@ -4,7 +4,7 @@ import {
   Steps, Button, Card, Form, InputNumber, Select, Radio, Space,
   Result, Typography, message, Divider,
 } from 'antd'
-import { LoadingOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined } from '@ant-design/icons'
 import { useStore } from '../store'
 import { RISK_QUESTIONS, normalizeRiskScore, getRiskProfile } from '../data/riskQuestionnaire'
 import type { HouseholdProfile } from '../types'
@@ -45,7 +45,6 @@ export default function Onboarding() {
     } else if (step === 1) {
       const rawScore = Object.values(riskAnswers).reduce((a, b) => a + b, 0)
       const normalized = normalizeRiskScore(rawScore)
-      const profile = getRiskProfile(normalized)
       useStore.getState().updateProfile({ riskToleranceScore: normalized })
       setStep(2)
     } else {

@@ -119,7 +119,7 @@ export const bankFlowParser: FormatParser = {
 
     if (transactions.length === 0) return null
 
-    let assets = transactionsToAssets(transactions, bankName, warnings)
+    const assets = transactionsToAssets(transactions, bankName, warnings)
 
     // Bank statements carry an authoritative final balance. Override the
     // deposit asset with it (a live checking account's worth IS its balance,

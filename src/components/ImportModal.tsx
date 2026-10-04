@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import {
   Modal, Upload, Steps, Button, Space, Card, Typography, Table, Tag,
-  Alert, Result, Descriptions, Divider, message,
+  Alert, Result, Descriptions, message,
 } from 'antd'
 import {
-  InboxOutlined, FileExcelOutlined, FileTextOutlined,
-  CheckCircleOutlined, ExclamationCircleOutlined,
+  InboxOutlined, FileTextOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
 import { detectAndImport } from '../importer'

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Card, Typography, Tag, Space, Checkbox, Empty, Collapse, Timeline } from 'antd'
-import { ClockCircleOutlined, CalendarOutlined, FieldTimeOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { ClockCircleOutlined, CalendarOutlined, FieldTimeOutlined } from '@ant-design/icons'
 import { useStore } from '../store'
 import { diagnose, generateRecommendations } from '../engine'
 import { URGENCY_LABELS, CHECK_STATUS_LABELS } from '../types'

@@ -1,19 +1,15 @@
 import { useMemo, useState } from 'react'
 import {
-  Row, Col, Card, Slider, Typography, Space, Tag, Statistic, Button, Empty, Divider, Descriptions,
+  Row, Col, Card, Slider, Typography, Space, Tag, Statistic, Button, Empty,
 } from 'antd'
-import { ExperimentOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { useStore } from '../store'
-import { applyShocks, runScenario, SCENARIO_PRESETS } from '../scenario'
-import { diagnose } from '../engine'
-import type { ScenarioShocks, ScenarioResult, CheckStatus } from '../types'
+import { runScenario, SCENARIO_PRESETS } from '../scenario'
+import type { ScenarioShocks } from '../types'
 import { CHECK_STATUS_LABELS } from '../types'
 import DisclaimerBanner from '../components/DisclaimerBanner'
 
 const { Title, Text, Paragraph } = Typography
-
-const STATUS_ORDER: CheckStatus[] = ['fail', 'warn', 'pass']
 
 export default function ScenarioLab() {
   const { assets, liabilities, profile } = useStore()
@@ -26,7 +22,6 @@ export default function ScenarioLab() {
   })
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: profile! }), [assets, liabilities, profile])
-  const baselineReport = useMemo(() => diagnose(snapshot), [snapshot])
   const scenario = useMemo(
     () => runScenario(snapshot, shocks, '自定义情景'),
     [snapshot, shocks]

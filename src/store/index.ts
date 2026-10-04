@@ -9,11 +9,8 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
 import type {
   Asset,
-  AssetCategory,
   Liability,
-  LiabilityType,
   HouseholdProfile,
-  IncomeStability,
   ScenarioShocks,
 } from '../types'
 import {

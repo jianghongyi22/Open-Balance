@@ -12,7 +12,7 @@ import {
 } from '../types'
 import type { Asset, AssetCategory, Liquidity, RiskLevel, Currency, Liability, LiabilityType } from '../types'
 import { CATEGORY_COLORS } from '../data/marketParams'
-import { categoryBreakdown, totalAssets, totalLiabilities, netWorth } from '../engine/metrics'
+import { categoryBreakdown, netWorth } from '../engine/metrics'
 import { formatCNY } from '../utils/format'
 
 const { Title, Text } = Typography

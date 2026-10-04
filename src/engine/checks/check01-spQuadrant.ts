@@ -1,7 +1,6 @@
 import type { CheckResult, Snapshot } from '../../types'
 import { spQuadrantAllocation } from '../metrics'
 import { SP_QUADRANT_TARGETS } from '../../data/thresholds'
-import { ASSET_CATEGORY_LABELS } from '../../types'
 
 export function check01(snapshot: Snapshot): CheckResult {
   const alloc = spQuadrantAllocation(snapshot.assets)

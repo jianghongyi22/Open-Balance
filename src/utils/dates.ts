@@ -36,7 +36,7 @@ export function parseDateToMs(value: unknown): number | null {
   if (!str) return null
 
   // YYYY/MM/DD or YYYY-MM-DD or YYYY.MM.DD
-  const m = str.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/)
+  const m = str.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})/)
   if (m) {
     const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
     return isNaN(ms) ? null : ms

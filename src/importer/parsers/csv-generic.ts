@@ -8,7 +8,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import type { Asset, AssetCategory } from '../../types'
 import { ASSET_CATEGORY_LABELS } from '../../types'
-import type { ImportResult, ColumnMap, FormatParser } from '../types'
+import type { ImportResult, FormatParser } from '../types'
 import { getSheetRows } from '../spreadsheet'
 import type { ParsedWorkbook } from '../spreadsheet'
 import { autoMapColumns } from '../column-mapper'
