@@ -100,7 +100,7 @@ npm test         # 运行全部测试（82 个用例）
 | 表格解析 | exceljs + 自实现 CSV 解析（UTF-8/GBK 自适应） |
 | 测试 | Vitest 5（引擎 47 + 导入 35 用例） |
 
-架构核心：诊断引擎是快照的**纯函数** `diagnose(snapshot) → DiagnosticReport`。17 项检查各一个模块（`src/engine/checks/`），全部阈值集中在 `src/data/thresholds.ts` 单源管理，市场参数（收益/波动/相关性矩阵）在 `src/data/marketParams.ts`——换数据不换逻辑。
+架构核心：诊断引擎是快照的**纯函数** `diagnose(snapshot) → DiagnosticReport`。17 项检查各一个模块（`src/engine/checks/`），全部阈值集中在 `src/data/thresholds.ts` 单源管理，市场参数（收益/波动/相关性矩阵，2015-2024 公开统计回测值）在 `src/data/marketParams.ts`——换数据不换逻辑，`scripts/backtest-market-params.mjs` 支持自定义数据重算。
 
 ```
 src/
@@ -113,7 +113,7 @@ src/
 └── pages/       # 引导、总览、台账、报告、建议、情景分析、数据管理
 ```
 
-贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)，数据模型文档见 [docs/data-model.md](docs/data-model.md)。
+贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)，数据模型文档见 [docs/data-model.md](docs/data-model.md)，权重与阈值校准见 [docs/calibration.md](docs/calibration.md)。
 
 ## 测试
 

@@ -65,7 +65,6 @@ function annualizedVol(series) {
 /** 两序列日收益率相关系数 */
 function correlation(seriesA, seriesB) {
   // 按日期对齐
-  const dateSet = new Set(seriesB.map((p) => p.date))
   const aligned = seriesA
     .map((p) => ({ a: p, b: seriesB.find((q) => q.date === p.date) }))
     .filter((x) => x.b)
