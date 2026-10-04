@@ -8,6 +8,11 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - security
+    ignore:
+      # 大版本升级是破坏性变更（antd 6 / echarts 6 / react-router 7 /
+      # uuid 14 等），由人工评估升级；dependabot 只提 minor/patch
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
     groups:
       # 开发依赖合并成一个 PR，减少噪音
       dev-dependencies:
