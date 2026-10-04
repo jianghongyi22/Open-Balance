@@ -8,6 +8,7 @@ import {
   ExperimentOutlined,
   DatabaseOutlined,
   HomeOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from './store'
@@ -17,6 +18,7 @@ import Report from './pages/Report'
 import Recommendations from './pages/Recommendations'
 import ScenarioLab from './pages/ScenarioLab'
 import DataManagement from './pages/Data'
+import Privacy from './pages/Privacy'
 import Onboarding from './pages/Onboarding'
 
 const { Sider, Content, Header } = Layout
@@ -29,6 +31,7 @@ const menuItems = [
   { key: '/recommendations', icon: <BulbOutlined />, label: '优化建议' },
   { key: '/scenario-lab', icon: <ExperimentOutlined />, label: '情景分析' },
   { key: '/data', icon: <DatabaseOutlined />, label: '数据管理' },
+  { key: '/privacy', icon: <SafetyCertificateOutlined />, label: '隐私说明' },
 ]
 
 function AppLayout() {
@@ -113,6 +116,7 @@ function AppLayout() {
             <Route path="/recommendations" element={<Recommendations />} />
             <Route path="/scenario-lab" element={<ScenarioLab />} />
             <Route path="/data" element={<DataManagement />} />
+            <Route path="/privacy" element={<Privacy />} />
           </Routes>
         </Content>
       </Layout>

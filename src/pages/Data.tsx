@@ -7,6 +7,7 @@ import {
   ExclamationCircleOutlined, FileTextOutlined, FileExcelOutlined,
 } from '@ant-design/icons'
 import { useStore, wasStorageRecovered } from '../store'
+import { useNavigate } from 'react-router-dom'
 import { formatCNY } from '../utils/format'
 import ImportModal from '../components/ImportModal'
 
@@ -16,6 +17,7 @@ export default function DataManagement() {
   const { assets, liabilities, profile, exportData, clearAllData, loadSampleData } = useStore()
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
+  const navigate = useNavigate()
 
   // 本地存储损坏恢复提示（会话级标志，挂载时提示一次）
   const recovered = wasStorageRecovered()
@@ -228,6 +230,7 @@ export default function DataManagement() {
                     <li>不同设备/浏览器之间的数据是独立的</li>
                     <li>建议定期使用"导出 JSON"功能备份数据</li>
                     <li>导入的文件仅在前端解析，不会上传到服务器</li>
+                    <li>详细数据流与删除指引见 <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate('/privacy')}>隐私说明 →</Button></li>
                   </ul>
                 </div>
               }
