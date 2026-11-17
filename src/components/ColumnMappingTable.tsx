@@ -1,4 +1,5 @@
 import { Select, Table, Typography } from 'antd'
+import { useI18n } from '../i18n'
 import type { ColumnMap } from '../importer/types'
 import { COLUMN_FIELDS, headerOptions } from '../importer/column-mapper'
 
@@ -18,11 +19,12 @@ export default function ColumnMappingTable({
   columnMap,
   onChange,
 }: ColumnMappingTableProps) {
+  const { t } = useI18n()
   const options = headerOptions(headers)
 
   const columns = [
     {
-      title: '资产字段',
+      title: t('colmap.field'),
       dataIndex: 'label',
       key: 'label',
       width: 140,
@@ -34,7 +36,7 @@ export default function ColumnMappingTable({
       ),
     },
     {
-      title: '映射到文件列',
+      title: t('colmap.column'),
       dataIndex: 'key',
       key: 'mapping',
       render: (fieldKey: keyof ColumnMap) => (
@@ -45,7 +47,7 @@ export default function ColumnMappingTable({
           onChange={(val) => {
             onChange({ ...columnMap, [fieldKey]: val || null })
           }}
-          placeholder="— 不映射 —"
+          placeholder={t('colmap.none')}
         />
       ),
     },
@@ -53,7 +55,7 @@ export default function ColumnMappingTable({
 
   const dataSource = COLUMN_FIELDS.map((f) => ({
     key: f.key,
-    label: f.label,
+    label: t(`colmap.${f.key.replace('Col', '')}`),
     required: f.required,
     fieldKey: f.key,
   }))
@@ -61,7 +63,7 @@ export default function ColumnMappingTable({
   return (
     <div>
       <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-        请将文件中的列名映射到 Open-Balance 资产字段。系统已尝试自动匹配。
+        {t('colmap.hint')}
       </Text>
       <Table
         columns={columns}

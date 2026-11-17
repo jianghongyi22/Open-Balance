@@ -669,3 +669,35 @@ describe('边界用例 (Issue #11)', () => {
     expect(report.overallScore).toBeLessThanOrEqual(100)
   })
 })
+
+// ============================================================
+// 双语支持：引擎输出英文文案
+// ============================================================
+
+describe('双语引擎输出 (i18n)', () => {
+  it('locale=en 时输出英文检查项名称', () => {
+    const report = diagnose(makeSnapshot(), { locale: 'en' })
+    expect(report.checks.find((c) => c.id === 'Q1')!.name).toBe('S&P Family Quadrants')
+    expect(report.checks.find((c) => c.id === 'Q3')!.name).toBe('Emergency Fund Adequacy')
+    expect(report.checks.find((c) => c.id === 'Q8')!.name).toBe('Retirement Readiness')
+  })
+
+  it('默认（zh）保持中文输出', () => {
+    const report = diagnose(makeSnapshot())
+    expect(report.checks.find((c) => c.id === 'Q1')!.name).toBe('标准普尔四象限检查')
+    expect(report.checks.find((c) => c.id === 'Q3')!.name).toBe('应急备用金充足性')
+  })
+
+  it('英文建议模板完成插值', () => {
+    const snapshot = makeSnapshot()
+    const report = diagnose(snapshot, { locale: 'en' })
+    const recs = generateRecommendations(snapshot, report.checks, 'en')
+    for (const r of recs) {
+      expect(r.title).not.toContain('{')
+      expect(r.description).not.toContain('{')
+    }
+    const q3 = recs.find((r) => r.checkRef === 'Q3')
+    expect(q3).toBeDefined()
+    expect(q3!.title).toContain('emergency fund')
+  })
+})

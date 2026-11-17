@@ -13,6 +13,7 @@ import type { ImportFormat, ImportResult, ColumnMap } from '../importer/types'
 import type { ParsedWorkbook } from '../importer/spreadsheet'
 import ColumnMappingTable from './ColumnMappingTable'
 import { useStore } from '../store'
+import { useI18n } from '../i18n'
 import { formatCNY } from '../utils/format'
 
 const { Title, Text, Paragraph } = Typography
@@ -48,6 +49,7 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
   const [columnMap, setColumnMap] = useState<ColumnMap | null>(null)
 
   const { importAssets, importLiabilities, setProfile } = useStore()
+  const { t, L } = useI18n()
 
   const handleFile = async (file: File) => {
     setLoading(true)
@@ -74,7 +76,7 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
       }
       setStage(1)
     } catch (e: any) {
-      setError(e.message || '文件解析失败，请尝试其他格式')
+      setError(e.message || t('import.failed'))
     } finally {
       setLoading(false)
     }
@@ -97,7 +99,7 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
 
   const handleConfirm = () => {
     if (!result || result.assets.length === 0) {
-      message.warning('没有可导入的资产')
+      message.warning(t('import.empty'))
       return
     }
 
@@ -114,7 +116,7 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
       setProfile(extras.profile as never)
     }
 
-    message.success(`成功导入 ${result.assets.length} 项资产`)
+    message.success(t('import.success', { n: result.assets.length }))
 
     if (result.warnings.length > 0) {
       setTimeout(() => {
@@ -154,12 +156,12 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
         <p className="ant-upload-drag-icon">
           <InboxOutlined style={{ fontSize: 48, color: '#1E5EFF' }} />
         </p>
-        <Title level={4}>点击或拖拽文件到这里</Title>
+        <Title level={4}>{t('import.drop.title')}</Title>
         <Paragraph type="secondary">
-          支持 JSON · CSV · Excel (.xls/.xlsx)
+          {t('import.drop.formats')}
         </Paragraph>
         <Paragraph type="secondary" style={{ fontSize: 12 }}>
-          支持格式：Open-Balance 备份 · 微信账单 · 支付宝账单 · 随手记 · 银行流水 · 通用表格
+          {t('import.drop.sources')}
         </Paragraph>
       </Dragger>
       {error && (
@@ -169,7 +171,7 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
         <Card style={{ marginTop: 16 }}>
           <Space>
             <FileTextOutlined spin />
-            <Text>正在解析 {fileName}...</Text>
+            <Text>{t('import.parsing', { file: fileName })}</Text>
           </Space>
         </Card>
       )}
@@ -181,17 +183,17 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
     if (!result) return null
 
     const { stats } = result
-    const fmtLabel = format ? IMPORT_FORMAT_LABELS[format] : '未知格式'
+    const fmtLabel = format ? IMPORT_FORMAT_LABELS[format] : t('import.unknownFormat')
 
     const assetColumns = [
-      { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
-      { title: '大类', dataIndex: 'category', key: 'category', render: (v: string) => v, width: 90 },
-      { title: '子类', dataIndex: 'subCategory', key: 'subCategory', width: 90 },
+      { title: t('assets.col.name'), dataIndex: 'name', key: 'name', ellipsis: true },
+      { title: t('assets.col.category'), dataIndex: 'category', key: 'category', render: (v: string) => L.category[v as keyof typeof L.category] ?? v, width: 90 },
+      { title: t('assets.col.subCategory'), dataIndex: 'subCategory', key: 'subCategory', width: 90 },
       {
         title: '市值', dataIndex: 'marketValue', key: 'marketValue', width: 110,
         render: (v: number) => <Text strong>{formatCNY(v)}</Text>,
       },
-      { title: '持有机构', dataIndex: 'heldAt', key: 'heldAt', width: 90 },
+      { title: t('assets.form.heldAt'), dataIndex: 'heldAt', key: 'heldAt', width: 90 },
     ]
 
     return (
@@ -199,30 +201,30 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
         {/* Format & Stats Card */}
         <Card style={{ marginBottom: 16 }}>
           <Descriptions size="small" column={3}>
-            <Descriptions.Item label="检测格式">
+            <Descriptions.Item label={t('import.format')}>
               <Tag color="blue">{fmtLabel}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="交易/记录数">
-              {stats.totalTransactions} 笔
+            <Descriptions.Item label={t('import.txCount')}>
+              {t('import.txCountValue', { n: stats.totalTransactions })}
             </Descriptions.Item>
-            <Descriptions.Item label="识别资产">{result.assets.length} 项</Descriptions.Item>
+            <Descriptions.Item label={t('import.assetCount')}>{t('import.assetCountValue', { n: result.assets.length })}</Descriptions.Item>
             {stats.periodStart && (
-              <Descriptions.Item label="日期范围">
+              <Descriptions.Item label={t('import.dateRange')}>
                 {stats.periodStart} ~ {stats.periodEnd}
               </Descriptions.Item>
             )}
             {stats.totalIncome > 0 && (
-              <Descriptions.Item label="总收入">{formatCNY(stats.totalIncome)}</Descriptions.Item>
+              <Descriptions.Item label={t('import.totalIncome')}>{formatCNY(stats.totalIncome)}</Descriptions.Item>
             )}
             {stats.totalExpense > 0 && (
-              <Descriptions.Item label="总支出">{formatCNY(stats.totalExpense)}</Descriptions.Item>
+              <Descriptions.Item label={t('import.totalExpense')}>{formatCNY(stats.totalExpense)}</Descriptions.Item>
             )}
           </Descriptions>
         </Card>
 
         {/* 通用 CSV：可编辑列映射 */}
         {format === 'csv-generic' && headers.length > 0 && columnMap && (
-          <Card title="列映射（自动匹配结果，可手动纠正）" size="small" style={{ marginBottom: 16 }}>
+          <Card title={t('import.columnMap')} size="small" style={{ marginBottom: 16 }}>
             <ColumnMappingTable
               headers={headers}
               columnMap={columnMap}
@@ -235,14 +237,14 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
         {result.warnings.length > 0 && (
           <Alert
             type="warning"
-            message="注意事项"
+            message={t('import.warnings')}
             description={result.warnings.map((w, i) => <div key={i}>• {w}</div>)}
             style={{ marginBottom: 16 }}
           />
         )}
 
         {/* Asset Preview Table */}
-        <Card title={`将导入 ${result.assets.length} 项资产`} size="small">
+        <Card title={t('import.previewTitle', { n: result.assets.length })} size="small">
           <Table
             dataSource={result.assets.map((a, i) => ({ ...a, key: i }))}
             columns={assetColumns}
@@ -252,7 +254,7 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
             summary={() => (
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} colSpan={3}>
-                  <Text strong>合计 {result.assets.length} 项</Text>
+                  <Text strong>{t('import.totalAssets', { n: result.assets.length })}</Text>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={1} colSpan={3}>
                   <Text strong style={{ color: '#1E5EFF' }}>
@@ -271,17 +273,17 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
   const renderConfirm = () => (
     <Result
       icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-      title="确认导入"
+      title={t('import.confirmTitle')}
       subTitle={
         result
-          ? `将导入 ${result.assets.length} 项资产，总计 ${formatCNY(result.assets.reduce((s, a) => s + a.marketValue, 0))}`
+          ? t('import.confirmDesc', { n: result.assets.length, total: formatCNY(result.assets.reduce((s, a) => s + a.marketValue, 0)) })
           : ''
       }
       extra={
         <Space>
-          <Button onClick={() => setStage(1)}>返回预览</Button>
+          <Button onClick={() => setStage(1)}>{t('import.backPreview')}</Button>
           <Button type="primary" onClick={handleConfirm}>
-            确认导入
+            {t('import.confirm')}
           </Button>
         </Space>
       }
@@ -290,16 +292,16 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
 
   return (
     <Modal
-      title="导入数据"
+      title={t('import.title')}
       open={open}
       onCancel={handleClose}
       footer={
         stage === 1 ? (
           <Space>
-            <Button onClick={() => setStage(0)}>重新选择</Button>
+            <Button onClick={() => setStage(0)}>{t('import.reselect')}</Button>
             {result && result.assets.length > 0 && (
               <Button type="primary" onClick={() => setStage(2)}>
-                下一步 · 确认
+                {t('import.nextConfirm')}
               </Button>
             )}
           </Space>
@@ -313,9 +315,9 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
         size="small"
         style={{ marginBottom: 24 }}
         items={[
-          { title: '选择文件' },
-          { title: '预览解析结果' },
-          { title: '确认导入' },
+          { title: t('import.step.0') },
+          { title: t('import.step.1') },
+          { title: t('import.step.2') },
         ]}
       />
 

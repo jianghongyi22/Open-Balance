@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { Card, Typography, Tag, Space, Checkbox, Empty, Collapse, Timeline } from 'antd'
 import { ClockCircleOutlined, CalendarOutlined, FieldTimeOutlined } from '@ant-design/icons'
 import { useStore } from '../store'
+import { useI18n } from '../i18n'
 import { diagnose, generateRecommendations } from '../engine'
-import { URGENCY_LABELS, CHECK_STATUS_LABELS } from '../types'
+
 import type { Urgency } from '../types'
 
 const { Title, Text, Paragraph } = Typography
@@ -16,13 +17,14 @@ const urgencyConfig: Record<Urgency, { color: string; icon: React.ReactNode }> =
 
 export default function Recommendations() {
   const { assets, liabilities, profile } = useStore()
+  const { t, locale, L } = useI18n()
   const [checked, setChecked] = useState<Set<string>>(new Set())
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: profile! }), [assets, liabilities, profile])
-  const report = useMemo(() => diagnose(snapshot), [snapshot])
-  const recs = useMemo(() => generateRecommendations(snapshot, report.checks), [snapshot, report])
+  const report = useMemo(() => diagnose(snapshot, { locale }), [snapshot, locale])
+  const recs = useMemo(() => generateRecommendations(snapshot, report.checks, locale), [snapshot, report, locale])
 
-  if (!profile) return <Empty description="请先完成引导" />
+  if (!profile) return <Empty description={t('dashboard.pleaseOnboard')} />
 
   const immediate = recs.filter((r) => r.urgency === 'immediate')
   const thisMonth = recs.filter((r) => r.urgency === 'this_month')
@@ -50,7 +52,7 @@ export default function Recommendations() {
         title={
           <Space>
             <Checkbox checked={checked.has(rec.id)} onChange={() => toggleCheck(rec.id)} />
-            <Tag color={config.color} icon={config.icon}>{URGENCY_LABELS[rec.urgency]}</Tag>
+            <Tag color={config.color} icon={config.icon}>{L.urgency[rec.urgency]}</Tag>
             <Text strong style={{ textDecoration: checked.has(rec.id) ? 'line-through' : 'none' }}>
               {rec.title}
             </Text>
@@ -59,16 +61,16 @@ export default function Recommendations() {
       >
         <Paragraph style={{ marginBottom: 8 }}>{rec.description}</Paragraph>
         <Space wrap>
-          <Tag>触发检查：{rec.checkRef} {triggeringCheck?.name}</Tag>
-          <Tag>当前状态：{triggeringCheck ? CHECK_STATUS_LABELS[triggeringCheck.status] : '—'}</Tag>
-          <Tag>预计耗时：{rec.effort}</Tag>
+          <Tag>{t('recs.trigger', { check: rec.checkRef, name: triggeringCheck?.name ?? '' })}</Tag>
+          <Tag>{t('recs.status', { status: triggeringCheck ? L.status[triggeringCheck.status] : '—' })}</Tag>
+          <Tag>{t('recs.effort', { effort: rec.effort })}</Tag>
         </Space>
         <Paragraph type="secondary" style={{ marginTop: 8, fontSize: 13 }}>
-          预期效果：{rec.expectedEffect}
+          {t('recs.effect', { effect: rec.expectedEffect })}
         </Paragraph>
         <Collapse size="small" ghost items={[{
           key: 'steps',
-          label: `操作步骤 (${rec.steps.length}步)`,
+          label: t('recs.steps', { count: rec.steps.length }),
           children: (
             <Timeline items={rec.steps.map((s, i) => ({ children: s, color: i === 0 ? 'blue' : 'gray' }))} />
           ),
@@ -79,16 +81,16 @@ export default function Recommendations() {
 
   return (
     <div>
-      <Title level={4}>优化建议</Title>
+      <Title level={4}>{t('recs.title')}</Title>
       <Card size="small" style={{ marginBottom: 16 }}>
         <Space>
-          <Text>执行进度：</Text>
-          <Text strong>{completed}/{totalRecs} 项已完成</Text>
+          <Text>{t('recs.progress')}</Text>
+          <Text strong>{t('recs.done', { done: completed, total: totalRecs })}</Text>
         </Space>
       </Card>
 
       {recs.length === 0 ? (
-        <Card><Empty description="恭喜！所有检查均已通过，暂无优化建议" /></Card>
+        <Card><Empty description={t('recs.none')} /></Card>
       ) : (
         <>
           {immediate.length > 0 && (

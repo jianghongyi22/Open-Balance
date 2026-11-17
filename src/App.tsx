@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Typography } from 'antd'
+import { Layout, Menu, Typography, Button, Space } from 'antd'
 import {
   DashboardOutlined,
   PieChartOutlined,
@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from './store'
+import { useI18n } from './i18n'
 import Dashboard from './pages/Dashboard'
 import Assets from './pages/Assets'
 import Report from './pages/Report'
@@ -24,20 +25,26 @@ import Onboarding from './pages/Onboarding'
 const { Sider, Content, Header } = Layout
 const { Text } = Typography
 
-const menuItems = [
-  { key: '/dashboard', icon: <DashboardOutlined />, label: '总览' },
-  { key: '/assets', icon: <PieChartOutlined />, label: '资产台账' },
-  { key: '/report', icon: <FileTextOutlined />, label: '诊断报告' },
-  { key: '/recommendations', icon: <BulbOutlined />, label: '优化建议' },
-  { key: '/scenario-lab', icon: <ExperimentOutlined />, label: '情景分析' },
-  { key: '/data', icon: <DatabaseOutlined />, label: '数据管理' },
-  { key: '/privacy', icon: <SafetyCertificateOutlined />, label: '隐私说明' },
+const menuIcons = [
+  { key: '/dashboard', icon: <DashboardOutlined /> },
+  { key: '/assets', icon: <PieChartOutlined /> },
+  { key: '/report', icon: <FileTextOutlined /> },
+  { key: '/recommendations', icon: <BulbOutlined /> },
+  { key: '/scenario-lab', icon: <ExperimentOutlined /> },
+  { key: '/data', icon: <DatabaseOutlined /> },
+  { key: '/privacy', icon: <SafetyCertificateOutlined /> },
 ]
 
 function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { onboardingComplete, profile } = useStore()
+  const { t, locale, setLocale } = useI18n()
+
+  const menuItems = menuIcons.map((item) => ({
+    ...item,
+    label: t(`menu.${item.key.slice(1)}`),
+  }))
 
   // Redirect to onboarding if not completed
   if (!onboardingComplete || !profile) {
@@ -95,11 +102,16 @@ function AppLayout() {
           }}
         >
           <Text type="secondary" style={{ fontSize: 13 }}>
-            家庭资产配置诊断 · 财务体检报告
+            {t('header.subtitle')}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            免责声明：本工具仅供教育参考，不构成投资建议
-          </Text>
+          <Space>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {t('header.disclaimer')}
+            </Text>
+            <Button size="small" onClick={() => setLocale(locale === 'en' ? 'zh' : 'en')}>
+              {t('common.language')}
+            </Button>
+          </Space>
         </Header>
         <Content
           style={{

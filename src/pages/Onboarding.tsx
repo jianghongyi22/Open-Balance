@@ -6,7 +6,8 @@ import {
 } from 'antd'
 import { CheckCircleOutlined } from '@ant-design/icons'
 import { useStore } from '../store'
-import { RISK_QUESTIONS, normalizeRiskScore, getRiskProfile } from '../data/riskQuestionnaire'
+import { useI18n } from '../i18n'
+import { getRiskQuestions, normalizeRiskScore, getRiskProfile } from '../data/riskQuestionnaire'
 import type { HouseholdProfile } from '../types'
 
 const { Title, Text, Paragraph } = Typography
@@ -17,6 +18,8 @@ export default function Onboarding() {
   const [riskAnswers, setRiskAnswers] = useState<Record<number, number>>({})
   const navigate = useNavigate()
   const { setProfile, loadSampleData, completeOnboarding } = useStore()
+  const { t, locale } = useI18n()
+  const riskQuestions = getRiskQuestions(locale)
 
   const handleNext = async () => {
     if (step === 0) {
@@ -40,7 +43,7 @@ export default function Onboarding() {
         setProfile(profile)
         setStep(1)
       } catch {
-        message.warning('请完成所有必填项')
+        message.warning(t('onboarding.warnRequired'))
       }
     } else if (step === 1) {
       const rawScore = Object.values(riskAnswers).reduce((a, b) => a + b, 0)
@@ -60,51 +63,51 @@ export default function Onboarding() {
 
   // Step 0: Household Profile
   const renderStep0 = () => (
-    <Card title="第一步：家庭基本信息" style={{ maxWidth: 600, margin: '0 auto' }}>
+    <Card title={t('onboarding.step1.title')} style={{ maxWidth: 600, margin: '0 auto' }}>
       <Form form={form} layout="vertical">
-        <Form.Item label="您的年龄" name="age1" rules={[{ required: true, message: '请输入年龄' }]}>
-          <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder="本人年龄" />
+        <Form.Item label={t('onboarding.age1')} name="age1" rules={[{ required: true, message: t('onboarding.age1') }]}>
+          <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder={t('onboarding.age1.ph')} />
         </Form.Item>
-        <Form.Item label="配偶/伴侣年龄（如适用）" name="age2">
-          <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder="如无则不填" />
+        <Form.Item label={t('onboarding.age2')} name="age2">
+          <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder={t('onboarding.age2.ph')} />
         </Form.Item>
-        <Form.Item label="家庭经济支柱年龄" name="breadwinnerAge"
-          extra="选填。生命周期检查（110-年龄法则）使用此年龄；不填则自动取60岁以下成员最大年龄">
-          <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder="默认自动推算" />
+        <Form.Item label={t('onboarding.breadwinner')} name="breadwinnerAge"
+          extra={t('onboarding.breadwinner.extra')}>
+          <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder={t('common.optional')} />
         </Form.Item>
-        <Form.Item label="抚养人数（未成年子女/老人）" name="dependentCount">
+        <Form.Item label={t('onboarding.dependents')} name="dependentCount">
           <InputNumber min={0} max={10} style={{ width: '100%' }} placeholder="0" />
         </Form.Item>
-        <Form.Item label="抚养对象年龄" name="dependentAges">
-          <InputNumber min={0} max={100} style={{ width: '100%' }} placeholder="主要抚养对象年龄（选填）" />
+        <Form.Item label={t('onboarding.dependentAges')} name="dependentAges">
+          <InputNumber min={0} max={100} style={{ width: '100%' }} placeholder={t('onboarding.dependentAges.ph')} />
         </Form.Item>
-        <Form.Item label="家庭年收入（税后）" name="annualIncome" rules={[{ required: true, message: '请输入年收入' }]}>
+        <Form.Item label={t('onboarding.income')} name="annualIncome" rules={[{ required: true, message: t('onboarding.income') }]}>
           <InputNumber min={0} style={{ width: '100%' }} placeholder="¥" formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
         </Form.Item>
-        <Form.Item label="月度刚性支出" name="monthlyEssentialExpense" rules={[{ required: true, message: '请输入月支出' }]}
-          extra="房贷/房租+伙食+交通+教育+基本生活">
+        <Form.Item label={t('onboarding.expense')} name="monthlyEssentialExpense" rules={[{ required: true, message: t('onboarding.expense') }]}
+          extra={t('onboarding.expense.extra')}>
           <InputNumber min={0} style={{ width: '100%' }} placeholder="¥" />
         </Form.Item>
-        <Form.Item label="预计退休后社保/企业年金月领额" name="monthlySocialPension"
-          extra="选填。不填时按年收入的30%估算">
+        <Form.Item label={t('onboarding.pension')} name="monthlySocialPension"
+          extra={t('onboarding.pension.extra')}>
           <InputNumber min={0} style={{ width: '100%' }} placeholder="¥/月" />
         </Form.Item>
-        <Form.Item label="子女教育目标" name="educationTier"
-          extra="选填。设置后将纳入教育金检查（Q17）">
+        <Form.Item label={t('onboarding.eduTier')} name="educationTier"
+          extra={t('onboarding.eduTier.extra')}>
           <Select
             allowClear
             placeholder="无教育目标"
             options={[
-              { value: 'domestic', label: '国内本科（约40万/4年，现价）' },
-              { value: 'overseas', label: '海外本科（约160万/4年，现价）' },
+              { value: 'domestic', label: t('onboarding.eduTier.domestic') },
+              { value: 'overseas', label: t('onboarding.eduTier.overseas') },
             ]}
           />
         </Form.Item>
-        <Form.Item label="收入稳定程度" name="incomeStability">
+        <Form.Item label={t('onboarding.stability')} name="incomeStability">
           <Select options={[
-            { value: 'stable', label: '稳定（工资/固定收入）' },
-            { value: 'variable', label: '波动（绩效/提成）' },
-            { value: 'self-employed-risky', label: '自雇/创业（不确定性高）' },
+            { value: 'stable', label: t('onboarding.stability.stable') },
+            { value: 'variable', label: t('onboarding.stability.variable') },
+            { value: 'self-employed-risky', label: t('onboarding.stability.risky') },
           ]} />
         </Form.Item>
       </Form>
@@ -113,11 +116,11 @@ export default function Onboarding() {
 
   // Step 1: Risk Questionnaire
   const renderStep1 = () => (
-    <Card title="第二步：风险承受能力测评" style={{ maxWidth: 700, margin: '0 auto' }}>
+    <Card title={t('onboarding.step2.title')} style={{ maxWidth: 700, margin: '0 auto' }}>
       <Text type="secondary" style={{ marginBottom: 16, display: 'block' }}>
-        请根据您的实际情况选择最接近的选项，共{RISK_QUESTIONS.length}题
+        {t('onboarding.step2.hint', { count: riskQuestions.length })}
       </Text>
-      {RISK_QUESTIONS.map((q) => (
+      {riskQuestions.map((q) => (
         <Card key={q.id} size="small" style={{ marginBottom: 12 }} title={`${q.id}. ${q.question}`}>
           <Radio.Group
             onChange={(e) => setRiskAnswers({ ...riskAnswers, [q.id]: e.target.value })}
@@ -145,14 +148,14 @@ export default function Onboarding() {
     <Card style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
       <Result
         icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-        title="档案建立完成！"
+        title={t('onboarding.step3.title')}
         subTitle={
           <div>
-            <Paragraph>风险测评得分：{normalized}/100</Paragraph>
-            <Paragraph strong>{riskProfile.level} — {riskProfile.description}</Paragraph>
+            <Paragraph>{t('onboarding.step3.score', { score: normalized })}</Paragraph>
+            <Paragraph strong>{locale === 'en' ? (riskProfile.level === '保守型' ? 'Conservative' : riskProfile.level === '稳健型' ? 'Moderate' : 'Aggressive') : riskProfile.level} — {riskProfile.description}</Paragraph>
             <Divider />
             <Paragraph type="secondary">
-              接下来将引导您录入家庭资产，或您也可以先浏览示例数据
+              {t('onboarding.step3.next')}
             </Paragraph>
           </div>
         }
@@ -161,16 +164,16 @@ export default function Onboarding() {
   )
 
   const stepItems = [
-    { title: '家庭信息' },
-    { title: '风险测评' },
-    { title: '完成' },
+    { title: t('onboarding.steps.0') },
+    { title: t('onboarding.steps.1') },
+    { title: t('onboarding.steps.2') },
   ]
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '48px 24px' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <Title level={2} style={{ color: '#1E5EFF' }}>Open-Balance</Title>
-        <Text type="secondary">家庭资产配置诊断工具 · 财务体检</Text>
+        <Text type="secondary">{t('onboarding.title')}</Text>
       </div>
 
       <Steps current={step} items={stepItems} style={{ maxWidth: 500, margin: '0 auto 32px' }} />
@@ -182,14 +185,14 @@ export default function Onboarding() {
       <div style={{ textAlign: 'center', marginTop: 24 }}>
         <Space>
           {step > 0 && (
-            <Button onClick={() => setStep(step - 1)}>上一步</Button>
+            <Button onClick={() => setStep(step - 1)}>{t('common.back')}</Button>
           )}
           <Button type="primary" onClick={handleNext}>
-            {step === 2 ? '开始使用' : '下一步'}
+            {step === 2 ? t('common.start') : t('common.next')}
           </Button>
           {step === 0 && (
             <Button type="dashed" onClick={handleSampleData}>
-              载入示例数据体验
+              {t('onboarding.sample')}
             </Button>
           )}
         </Space>

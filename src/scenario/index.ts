@@ -73,11 +73,12 @@ export function applyShocks(snapshot: Snapshot, shocks: ScenarioShocks): Snapsho
 export function runScenario(
   baseline: Snapshot,
   shocks: ScenarioShocks,
-  name: string
+  name: string,
+  locale: 'zh' | 'en' = 'zh'
 ): ScenarioResult {
-  const baselineReport = diagnose(baseline)
+  const baselineReport = diagnose(baseline, { locale })
   const shockedSnapshot = applyShocks(baseline, shocks)
-  const shockedReport = diagnose(shockedSnapshot)
+  const shockedReport = diagnose(shockedSnapshot, { locale })
 
   const checkDiffs = baselineReport.checks.map((bc) => {
     const sc = shockedReport.checks.find((c) => c.id === bc.id)!
@@ -108,7 +109,7 @@ export function runScenario(
 
 // --- Scenario presets ---
 
-export const SCENARIO_PRESETS: { name: string; shocks: ScenarioShocks; description: string }[] = [
+export const SCENARIO_PRESETS_ZH: { name: string; shocks: ScenarioShocks; description: string }[] = [
   {
     name: '股市回调 -20%',
     shocks: { stockMarketPct: -20, propertyMarketPct: 0, interestRateBps: 0, fxRatePct: 0, incomeInterruptionMonths: 0 },
@@ -140,3 +141,43 @@ export const SCENARIO_PRESETS: { name: string; shocks: ScenarioShocks; descripti
     description: '最坏情景：股市暴跌30%同时房价下跌15%',
   },
 ]
+
+export const SCENARIO_PRESETS_EN: { name: string; shocks: ScenarioShocks; description: string }[] = [
+  {
+    name: 'Stocks -20%',
+    shocks: { stockMarketPct: -20, propertyMarketPct: 0, interestRateBps: 0, fxRatePct: 0, incomeInterruptionMonths: 0 },
+    description: 'Assume the A-share market drops 20%',
+  },
+  {
+    name: 'Property -10%',
+    shocks: { stockMarketPct: 0, propertyMarketPct: -10, interestRateBps: 0, fxRatePct: 0, incomeInterruptionMonths: 0 },
+    description: 'Assume the property market keeps correcting by 10%',
+  },
+  {
+    name: 'Rates +100bp',
+    shocks: { stockMarketPct: 0, propertyMarketPct: 0, interestRateBps: 100, fxRatePct: 0, incomeInterruptionMonths: 0 },
+    description: 'Assume interest rates rise 100 basis points (1%)',
+  },
+  {
+    name: 'CNY +5%',
+    shocks: { stockMarketPct: 0, propertyMarketPct: 0, interestRateBps: 0, fxRatePct: -5, incomeInterruptionMonths: 0 },
+    description: 'Assume the CNY appreciates 5%',
+  },
+  {
+    name: 'Income Gap 6 Months',
+    shocks: { stockMarketPct: 0, propertyMarketPct: 0, interestRateBps: 0, fxRatePct: 0, incomeInterruptionMonths: 6 },
+    description: 'Assume the main income source stops for 6 months',
+  },
+  {
+    name: 'Stocks & Property Crash',
+    shocks: { stockMarketPct: -30, propertyMarketPct: -15, interestRateBps: 0, fxRatePct: 0, incomeInterruptionMonths: 0 },
+    description: 'Worst case: stocks -30% while property falls 15%',
+  },
+]
+
+import type { Locale } from '../i18n/types'
+
+export function getScenarioPresets(locale: Locale) {
+  return locale === 'en' ? SCENARIO_PRESETS_EN : SCENARIO_PRESETS_ZH
+}
+
