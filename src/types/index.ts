@@ -309,6 +309,8 @@ export interface Snapshot {
 export interface EngineContext {
   /** 诊断基准日期（YYYY-MM-DD）。默认今天；测试注入固定日期保证确定性。 */
   referenceDate: string
+  /** 输出文案语言。默认 'zh'。 */
+  locale?: 'zh' | 'en'
 }
 
 // --- Risk Questionnaire ---

@@ -4,8 +4,9 @@
 // ============================================================
 
 import type { RiskQuestion } from '../types'
+import type { Locale } from '../i18n/types'
 
-export const RISK_QUESTIONS: RiskQuestion[] = [
+export const RISK_QUESTIONS_ZH: RiskQuestion[] = [
   {
     id: 1,
     question: '您的年龄是？',
@@ -108,9 +109,120 @@ export const RISK_QUESTIONS: RiskQuestion[] = [
     ],
   },
 ]
+export const RISK_QUESTIONS: RiskQuestion[] = RISK_QUESTIONS_ZH
+
+export const RISK_QUESTIONS_EN: RiskQuestion[] = [
+  {
+    id: 1,
+    question: 'How old are you?',
+    options: [
+      { label: 'Over 55', score: 0 },
+      { label: '45-55', score: 3 },
+      { label: '35-45', score: 6 },
+      { label: '25-35', score: 10 },
+      { label: 'Under 25', score: 12 },
+    ],
+  },
+  {
+    id: 2,
+    question: 'How stable is your household income?',
+    options: [
+      { label: 'Very unstable (freelance / early-stage startup)', score: 0 },
+      { label: 'Fairly stable (corporate job in a volatile industry)', score: 4 },
+      { label: 'Very stable (civil service / SOE)', score: 10 },
+      { label: 'Very stable with expected growth', score: 12 },
+    ],
+  },
+  {
+    id: 3,
+    question: 'What is your investment experience?',
+    options: [
+      { label: 'Almost none — deposits and wealth products only', score: 0 },
+      { label: 'Some fund investing experience', score: 4 },
+      { label: 'Invested in stocks/funds and understand volatility', score: 8 },
+      { label: 'Extensive, across multiple asset types', score: 12 },
+    ],
+  },
+  {
+    id: 4,
+    question: 'What is your investment goal?',
+    options: [
+      { label: 'Capital preservation; just beat inflation', score: 0 },
+      { label: 'Steady growth; tolerate small swings', score: 5 },
+      { label: 'Higher returns; tolerate some drawdown', score: 10 },
+      { label: 'High returns; tolerate large drawdowns', score: 12 },
+    ],
+  },
+  {
+    id: 5,
+    question: 'If your portfolio fell 20% in a year, you would...',
+    options: [
+      { label: 'Panic and sell everything', score: 0 },
+      { label: 'Get worried and consider trimming', score: 4 },
+      { label: 'Accept it and keep holding', score: 8 },
+      { label: 'See it as a buying opportunity', score: 12 },
+    ],
+  },
+  {
+    id: 6,
+    question: 'What is your investment horizon?',
+    options: [
+      { label: 'Under 1 year — may need the money anytime', score: 0 },
+      { label: '1-3 years', score: 4 },
+      { label: '3-5 years', score: 8 },
+      { label: '5+ years, long-term investing', score: 12 },
+    ],
+  },
+  {
+    id: 7,
+    question: 'Your debt level (monthly payments / monthly income)?',
+    options: [
+      { label: 'Over 50% — heavy burden', score: 0 },
+      { label: '30-50% — some pressure', score: 3 },
+      { label: '10-30% — manageable', score: 7 },
+      { label: 'Under 10% or none', score: 10 },
+    ],
+  },
+  {
+    id: 8,
+    question: 'How many months of emergency reserve do you have?',
+    options: [
+      { label: 'Under 1 month', score: 0 },
+      { label: '1-3 months', score: 3 },
+      { label: '3-6 months', score: 6 },
+      { label: 'Over 6 months', score: 10 },
+    ],
+  },
+  {
+    id: 9,
+    question: 'Which asset type do you know best?',
+    options: [
+      { label: 'Bank deposits / wealth products', score: 0 },
+      { label: 'Funds / bonds', score: 4 },
+      { label: 'Stocks', score: 8 },
+      { label: 'Futures / options / crypto', score: 10 },
+    ],
+  },
+  {
+    id: 10,
+    question: 'How many income earners does your household have?',
+    options: [
+      { label: '1 (single breadwinner)', score: 0 },
+      { label: '2, one dominant', score: 4 },
+      { label: '2, roughly equal', score: 8 },
+      { label: '3 or more', score: 10 },
+    ],
+  },
+]
+
+export function getRiskQuestions(locale: Locale): RiskQuestion[] {
+  return locale === 'en' ? RISK_QUESTIONS_EN : RISK_QUESTIONS_ZH
+}
+
+
 
 // Maximum possible score from the questionnaire
-export const MAX_RISK_SCORE = RISK_QUESTIONS.reduce(
+export const MAX_RISK_SCORE = RISK_QUESTIONS_ZH.reduce(
   (max, q) => max + Math.max(...q.options.map(o => o.score)),
   0
 ) // = 112

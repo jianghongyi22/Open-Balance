@@ -7,6 +7,7 @@ import {
   ExclamationCircleOutlined, FileTextOutlined, FileExcelOutlined,
 } from '@ant-design/icons'
 import { useStore, wasStorageRecovered } from '../store'
+import { useI18n } from '../i18n'
 import { useNavigate } from 'react-router-dom'
 import { formatCNY } from '../utils/format'
 import ImportModal from '../components/ImportModal'
@@ -15,6 +16,7 @@ const { Title, Text, Paragraph } = Typography
 
 export default function DataManagement() {
   const { assets, liabilities, profile, exportData, clearAllData, loadSampleData } = useStore()
+  const { t } = useI18n()
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const navigate = useNavigate()
@@ -23,8 +25,9 @@ export default function DataManagement() {
   const recovered = wasStorageRecovered()
   useEffect(() => {
     if (recovered) {
-      message.warning('检测到本地数据损坏，已备份为 corrupted 键并重置为空数据。建议先导出 JSON 备份。')
+      message.warning(t('data.recovered.toast'))
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recovered])
 
   const handleExport = () => {
@@ -36,13 +39,13 @@ export default function DataManagement() {
     a.download = `open-balance-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-    message.success('数据已导出')
+    message.success(t('data.exported'))
   }
 
   const handleClear = () => {
     clearAllData()
     setDeleteModalOpen(false)
-    message.success('数据已清除')
+    message.success(t('data.cleared'))
     // HashRouter: 直接刷新首页路径，由 App 的重定向逻辑带回引导页
     setTimeout(() => window.location.href = '#/', 500)
   }
@@ -52,7 +55,7 @@ export default function DataManagement() {
 
   return (
     <div>
-      <Title level={4}>数据管理</Title>
+      <Title level={4}>{t('data.title')}</Title>
 
       <Row gutter={[16, 16]}>
         {recovered && (
@@ -60,22 +63,22 @@ export default function DataManagement() {
             <Alert
               type="warning"
               showIcon
-              message="本地数据已从损坏状态恢复"
-              description="原始损坏数据已备份到 localStorage 的 open-balance-store-corrupted-* 键中，当前数据已重置。"
+              message={t('data.recovered.title')}
+              description={t('data.recovered.desc')}
             />
           </Col>
         )}
 
         {/* Summary */}
         <Col span={24}>
-          <Card title="数据概览">
+          <Card title={t('data.overview')}>
             <Descriptions column={3} size="small">
-              <Descriptions.Item label="资产项数">{assets.length} 项</Descriptions.Item>
-              <Descriptions.Item label="资产总值">{formatCNY(totalAssetValue)}</Descriptions.Item>
-              <Descriptions.Item label="负债项数">{liabilities.length} 项</Descriptions.Item>
-              <Descriptions.Item label="负债总额">{formatCNY(totalLiabilityValue)}</Descriptions.Item>
-              <Descriptions.Item label="净资产">{formatCNY(totalAssetValue - totalLiabilityValue)}</Descriptions.Item>
-              <Descriptions.Item label="家庭档案">{profile ? `${profile.memberAges.length}位成员 · 年收入${formatCNY(profile.annualIncome)}` : '未设置'}</Descriptions.Item>
+              <Descriptions.Item label={t('data.assetCount')}>{assets.length} {t('assets.stat.countSuffix')}</Descriptions.Item>
+              <Descriptions.Item label={t('data.assetValue')}>{formatCNY(totalAssetValue)}</Descriptions.Item>
+              <Descriptions.Item label={t('data.liabilityCount')}>{liabilities.length} {t('assets.stat.countSuffix')}</Descriptions.Item>
+              <Descriptions.Item label={t('data.liabilityValue')}>{formatCNY(totalLiabilityValue)}</Descriptions.Item>
+              <Descriptions.Item label={t('data.netWorth')}>{formatCNY(totalAssetValue - totalLiabilityValue)}</Descriptions.Item>
+              <Descriptions.Item label={t('data.profile')}>{profile ? t('data.profileValue', { n: profile.memberAges.length, income: formatCNY(profile.annualIncome) }) : t('data.profileUnset')}</Descriptions.Item>
             </Descriptions>
           </Card>
         </Col>
@@ -85,13 +88,13 @@ export default function DataManagement() {
           <Card>
             <Space direction="vertical" style={{ width: '100%' }}>
               <ImportOutlined style={{ fontSize: 32, color: '#1E5EFF' }} />
-              <Title level={5}>导入数据</Title>
+              <Title level={5}>{t('data.import')}</Title>
               <Paragraph type="secondary">
-                支持多种格式：Open-Balance 备份 · 微信账单 · 支付宝账单 · 随手记 · 银行流水 · 通用 CSV/Excel
+                {t('data.importDesc')}
               </Paragraph>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Button type="primary" icon={<ImportOutlined />} onClick={() => setImportModalOpen(true)} block>
-                  选择文件导入
+                  {t('data.importButton')}
                 </Button>
                 <Space size={4} wrap>
                   <Tag>JSON</Tag><Tag>CSV</Tag><Tag>Excel</Tag>
@@ -107,12 +110,12 @@ export default function DataManagement() {
           <Card>
             <Space direction="vertical" style={{ width: '100%' }}>
               <FileTextOutlined style={{ fontSize: 32, color: '#1E5EFF' }} />
-              <Title level={5}>导出备份 (JSON)</Title>
+              <Title level={5}>{t('data.export')}</Title>
               <Paragraph type="secondary">
-                将所有资产、负债和家庭档案导出为JSON文件，可用于备份或迁移
+                {t('data.exportDesc')}
               </Paragraph>
               <Button icon={<DownloadOutlined />} onClick={handleExport} block>
-                导出 JSON
+                {t('data.exportButton')}
               </Button>
             </Space>
           </Card>
@@ -123,16 +126,16 @@ export default function DataManagement() {
           <Card>
             <Space direction="vertical" style={{ width: '100%' }}>
               <ExclamationCircleOutlined style={{ fontSize: 32, color: '#ff4d4f' }} />
-              <Title level={5}>数据操作</Title>
+              <Title level={5}>{t('data.operations')}</Title>
               <Paragraph type="secondary">
-                重置为示例数据体验功能，或清除所有数据重新开始
+                {t('data.operationsDesc')}
               </Paragraph>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Button onClick={loadSampleData} block>
-                  载入示例数据
+                  {t('data.loadSample')}
                 </Button>
                 <Button danger icon={<DeleteOutlined />} onClick={() => setDeleteModalOpen(true)} block>
-                  清除所有数据
+                  {t('data.clearAll')}
                 </Button>
               </Space>
             </Space>
@@ -141,7 +144,7 @@ export default function DataManagement() {
 
         {/* Supported formats info */}
         <Col span={24}>
-          <Card title="支持的导入格式">
+          <Card title={t('data.formats')}>
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12} md={8}>
                 <Card size="small" type="inner">
@@ -150,7 +153,7 @@ export default function DataManagement() {
                     <Text strong>Open-Balance 备份</Text>
                   </Space>
                   <Paragraph type="secondary" style={{ marginTop: 4, fontSize: 12, marginBottom: 0 }}>
-                    .json 格式，含资产+负债+档案（系统自有格式）
+                    {t('data.format.json')}
                   </Paragraph>
                 </Card>
               </Col>
@@ -161,7 +164,7 @@ export default function DataManagement() {
                     <Text strong>微信支付账单</Text>
                   </Space>
                   <Paragraph type="secondary" style={{ marginTop: 4, fontSize: 12, marginBottom: 0 }}>
-                    .csv 微信→支付→钱包→账单→导出
+                    {t('data.format.wechat')}
                   </Paragraph>
                 </Card>
               </Col>
@@ -172,7 +175,7 @@ export default function DataManagement() {
                     <Text strong>支付宝账单</Text>
                   </Space>
                   <Paragraph type="secondary" style={{ marginTop: 4, fontSize: 12, marginBottom: 0 }}>
-                    .csv/.xls 支付宝→我的→账单→导出
+                    {t('data.format.alipay')}
                   </Paragraph>
                 </Card>
               </Col>
@@ -183,7 +186,7 @@ export default function DataManagement() {
                     <Text strong>随手记</Text>
                   </Space>
                   <Paragraph type="secondary" style={{ marginTop: 4, fontSize: 12, marginBottom: 0 }}>
-                    .csv/.xls 随手记→更多→导出数据
+                    {t('data.format.suishouji')}
                   </Paragraph>
                 </Card>
               </Col>
@@ -205,7 +208,7 @@ export default function DataManagement() {
                     <Text strong>通用 CSV/Excel</Text>
                   </Space>
                   <Paragraph type="secondary" style={{ marginTop: 4, fontSize: 12, marginBottom: 0 }}>
-                    任何表格文件，自动匹配列名（兜底方案）
+                    {t('data.format.generic')}
                   </Paragraph>
                 </Card>
               </Col>
@@ -218,19 +221,19 @@ export default function DataManagement() {
           <Card>
             <Alert
               type="warning"
-              message="数据存储说明"
+              message={t('data.storage')}
               description={
                 <div>
                   <Paragraph style={{ marginBottom: 8 }}>
-                    您的所有数据存储在浏览器的 localStorage 中。这意味着：
+                    {t('data.storage.desc')}
                   </Paragraph>
                   <ul style={{ margin: 0, paddingLeft: 20 }}>
-                    <li>数据仅保存在当前设备/浏览器中，不会上传到任何服务器</li>
-                    <li>清除浏览器缓存/数据会导致数据丢失</li>
-                    <li>不同设备/浏览器之间的数据是独立的</li>
-                    <li>建议定期使用"导出 JSON"功能备份数据</li>
-                    <li>导入的文件仅在前端解析，不会上传到服务器</li>
-                    <li>详细数据流与删除指引见 <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate('/privacy')}>隐私说明 →</Button></li>
+                    <li>{t('data.storage.b1')}</li>
+                    <li>{t('data.storage.b2')}</li>
+                    <li>{t('data.storage.b3')}</li>
+                    <li>{t('data.storage.b4')}</li>
+                    <li>{t('data.storage.b5')}</li>
+                    <li>{t('data.storage.b6')} <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate('/privacy')}>{t('menu.privacy')} →</Button></li>
                   </ul>
                 </div>
               }
@@ -247,18 +250,18 @@ export default function DataManagement() {
 
       {/* Delete Confirmation Modal */}
       <Modal
-        title="确认清除所有数据？"
+        title={t('data.clear.title')}
         open={deleteModalOpen}
         onOk={handleClear}
         onCancel={() => setDeleteModalOpen(false)}
-        okText="确认清除"
-        cancelText="取消"
+        okText={t('data.clear.ok')}
+        cancelText={t('data.clear.cancel')}
         okButtonProps={{ danger: true }}
       >
         <Paragraph>
-          此操作将删除所有资产、负债和家庭档案数据，且不可恢复。
+          {t('data.clear.desc')}
         </Paragraph>
-        <Paragraph strong>建议在清除前先导出数据备份。</Paragraph>
+        <Paragraph strong>{t('data.clear.hint')}</Paragraph>
       </Modal>
     </div>
   )

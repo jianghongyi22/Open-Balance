@@ -9,8 +9,10 @@ import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import { ConfigProvider, App as AntApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
+import enUS from 'antd/locale/en_US'
 import App from './App'
 import './print.css'
+import { I18nProvider, useI18n } from './i18n'
 
 const theme = {
   token: {
@@ -22,14 +24,23 @@ const theme = {
   },
 }
 
-ReactDOM.createRoot(document.getElementById('app')!).render(
-  <React.StrictMode>
-    <ConfigProvider locale={zhCN} theme={theme}>
+function Root() {
+  const { locale } = useI18n()
+  return (
+    <ConfigProvider locale={locale === 'en' ? enUS : zhCN} theme={theme}>
       <AntApp>
         <HashRouter>
           <App />
         </HashRouter>
       </AntApp>
     </ConfigProvider>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('app')!).render(
+  <React.StrictMode>
+    <I18nProvider>
+      <Root />
+    </I18nProvider>
   </React.StrictMode>
 )

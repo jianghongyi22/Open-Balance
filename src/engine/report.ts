@@ -20,6 +20,8 @@ import {
 export interface DiagnoseOptions {
   /** 诊断基准日期（YYYY-MM-DD），默认今天。 */
   referenceDate?: string
+  /** 输出文案语言，默认 'zh'。 */
+  locale?: 'zh' | 'en'
 }
 
 export function diagnose(
@@ -29,6 +31,7 @@ export function diagnose(
   const ctx: EngineContext = {
     referenceDate:
       options?.referenceDate ?? new Date().toISOString().slice(0, 10),
+    locale: options?.locale ?? 'zh',
   }
 
   // Run all checks

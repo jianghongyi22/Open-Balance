@@ -3,8 +3,10 @@
 > 输入家庭资产一次，获得一份量化的**财务体检报告**：17 项检查、A-D 综合评级、按紧急度排序的行动清单，以及应对市场冲击的情景模拟。
 >
 > 教育性质工具，不销售任何产品。**不构成投资建议。**
+>
+> 界面支持中英双语（页头按钮切换）。
 
-[![CI](https://github.com/jianghongyi22/Open-Balance/actions/workflows/ci.yml/badge.svg)](https://github.com/jianghongyi22/Open-Balance/actions/workflows/ci.yml)
+[English](README.en.md) · [![CI](https://github.com/jianghongyi22/Open-Balance/actions/workflows/ci.yml/badge.svg)](https://github.com/jianghongyi22/Open-Balance/actions/workflows/ci.yml)
 [![Deploy Pages](https://github.com/jianghongyi22/Open-Balance/actions/workflows/deploy.yml/badge.svg)](https://github.com/jianghongyi22/Open-Balance/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Prototype](https://img.shields.io/badge/status-prototype-orange)](#项目状态)

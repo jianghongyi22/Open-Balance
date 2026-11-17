@@ -6,8 +6,9 @@ import {
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { useStore } from '../store'
+import { useI18n } from '../i18n'
 import { diagnose } from '../engine'
-import { CHECK_SEVERITY_LABELS, CHECK_STATUS_LABELS, EVIDENCE_LEVEL_LABELS } from '../types'
+
 import type { CheckResult, CheckStatus } from '../types'
 import { netWorth } from '../engine/metrics'
 import { formatCNY } from '../utils/format'
@@ -17,12 +18,13 @@ const { Title, Text, Paragraph } = Typography
 
 export default function Report() {
   const { assets, liabilities, profile, snapshots } = useStore()
+  const { t, locale, L } = useI18n()
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: profile! }), [assets, liabilities, profile])
-  const report = useMemo(() => diagnose(snapshot), [snapshot])
+  const report = useMemo(() => diagnose(snapshot, { locale }), [snapshot, locale])
   const totalNW = useMemo(() => netWorth(snapshot), [snapshot])
 
-  if (!profile) return <Empty description="请先完成引导" />
+  if (!profile) return <Empty description={t('dashboard.pleaseOnboard')} />
 
   // 与上次诊断对比：取最近一条非今日快照
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -102,38 +104,38 @@ export default function Report() {
           {statusIcon(check.status)}
           <Text strong>{check.id} {check.name}</Text>
           <Tag color={check.severity === 'critical' ? 'red' : check.severity === 'high' ? 'orange' : check.severity === 'medium' ? 'blue' : 'default'}>
-            {CHECK_SEVERITY_LABELS[check.severity]}
+            {L.severity[check.severity]}
           </Tag>
           <Tag color={check.status === 'pass' ? 'green' : check.status === 'warn' ? 'gold' : 'red'}>
-            {CHECK_STATUS_LABELS[check.status]}
+            {L.status[check.status]}
           </Tag>
           <Tag color={check.evidenceLevel === 'regulatory' ? 'purple' : check.evidenceLevel === 'research' ? 'cyan' : 'default'}>
-            {EVIDENCE_LEVEL_LABELS[check.evidenceLevel]}
+            {L.evidence[check.evidenceLevel]}
           </Tag>
           {report.criticalChecks.includes(check.id) && (
-            <Tag color="red">一票警告</Tag>
+            <Tag color="red">{t('report.criticalTag')}</Tag>
           )}
           {report.crossValidationOverrides.includes(check.id) && (
-            <Tag color="orange">交叉验证覆盖</Tag>
+            <Tag color="orange">{t('report.crossValidationTag')}</Tag>
           )}
         </Space>
       }
     >
       <Paragraph type="secondary" style={{ marginBottom: 8 }}>{check.description}</Paragraph>
       <Descriptions size="small" column={2}>
-        <Descriptions.Item label="框架依据">{check.framework || '—'}</Descriptions.Item>
-        <Descriptions.Item label="实测值">{check.measuredLabel}{check.layer === 'quantitative' && check.id !== 'Q15' ? '（估算）' : ''}</Descriptions.Item>
-        <Descriptions.Item label="阈值标准" span={2}>{check.threshold}</Descriptions.Item>
+        <Descriptions.Item label={t('report.framework')}>{check.framework || '—'}</Descriptions.Item>
+        <Descriptions.Item label={t('report.measured')}>{check.measuredLabel}{check.layer === 'quantitative' && check.id !== 'Q15' ? t('report.estimated') : ''}</Descriptions.Item>
+        <Descriptions.Item label={t('report.threshold')} span={2}>{check.threshold}</Descriptions.Item>
         {check.rangeValue && (
-          <Descriptions.Item label="区间估计" span={2}>
+          <Descriptions.Item label={t('report.range')} span={2}>
             {check.rangeValue.low >= 99
-              ? '充足'
+              ? t('report.sufficient')
               : `${(check.rangeValue.low * 100).toFixed(0)}%`}
             {' ~ '}
             {check.rangeValue.high >= 99
-              ? '充足'
+              ? t('report.sufficient')
               : `${(check.rangeValue.high * 100).toFixed(0)}%`}
-            （悲观 ~ 乐观情景）
+            {t('report.range.scenarios')}
           </Descriptions.Item>
         )}
       </Descriptions>
@@ -142,7 +144,7 @@ export default function Report() {
         ghost
         items={[{
           key: 'detail',
-          label: '详细分析',
+          label: t('report.detail'),
           children: <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, margin: 0 }}>{check.detail}</pre>,
         }]}
       />
@@ -157,13 +159,13 @@ export default function Report() {
       {/* 打印工具行（打印时隐藏） */}
       <Space className="print-hide" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-          打印报告 / 另存为 PDF
+          {t('report.print')}
         </Button>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          报告生成于 {new Date(report.generatedAt).toLocaleString('zh-CN')}
+          {t('report.generatedAt', { time: new Date(report.generatedAt).toLocaleString(locale === 'en' ? 'en-US' : 'zh-CN') })}
           {scoreDelta !== null && prevSnapshot && (
             <Text style={{ marginLeft: 12 }}>
-              较上次（{prevSnapshot.date.slice(0, 10)}）：
+              {t('report.vsPrevious', { date: prevSnapshot.date.slice(0, 10) })}
               <Text
                 strong
                 style={{
@@ -175,7 +177,7 @@ export default function Report() {
               </Text>
             </Text>
           )}
-          {' · '}教育演示用途，不构成投资建议
+          {' · '}{t('report.eduNote')}
         </Text>
       </Space>
 
@@ -193,18 +195,18 @@ export default function Report() {
               <TrophyOutlined style={{ fontSize: 32, color: gradeColor }} />
               <div>
                 <Title level={3} style={{ margin: 0, color: gradeColor }}>
-                  诊断等级：{report.grade}级 — {report.gradeLabel}
+                  {t('report.grade', { grade: report.grade, label: L.grade[report.grade] })}
                   <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-                    （仅用于教育演示，不构成适当性结论）
+                    {t('report.gradeNote')}
                   </Text>
                 </Title>
                 <Text type="secondary">
-                  综合评分 {report.overallScore}/100 · 定性 {report.qualitativeScore}分 · 定量 {report.quantitativeScore}分
+                  {t('report.scores', { overall: report.overallScore, qual: report.qualitativeScore, quant: report.quantitativeScore })}
                 </Text>
                 {report.criticalFlag && (
                   <div style={{ marginTop: 4 }}>
                     <Tag color="red" icon={<WarningOutlined />}>
-                      一票警告已触发（{report.criticalChecks.join(', ')}）：整体评级封顶"关注(C)"
+                      {t('report.criticalFlag', { checks: report.criticalChecks.join(', ') })}
                     </Tag>
                   </div>
                 )}
@@ -212,7 +214,7 @@ export default function Report() {
             </Space>
           </Col>
           <Col>
-            <Statistic title="净资产" value={formatCNY(totalNW)} />
+            <Statistic title={t('dashboard.netWorth')} value={formatCNY(totalNW)} />
           </Col>
         </Row>
       </Card>
@@ -227,27 +229,27 @@ export default function Report() {
 
         {/* Dimension Scores */}
         <Col xs={24} md={8}>
-          <Card title="维度评分">
+          <Card title={t('report.dimensions')}>
             <ReactECharts option={scoreBarOption} style={{ height: 280 }} />
           </Card>
         </Col>
 
         {/* Summary */}
         <Col xs={24} md={8}>
-          <Card title="检查概览">
+          <Card title={t('report.overview')}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <div>
-                <Space><CheckCircleOutlined style={{ color: '#52c41a' }} /><Text>通过</Text></Space>
+                <Space><CheckCircleOutlined style={{ color: '#52c41a' }} /><Text>{t('report.pass')}</Text></Space>
                 <Progress percent={Math.round(report.checks.filter(c => c.status === 'pass').length / 16 * 100)}
                   strokeColor="#52c41a" size="small" />
               </div>
               <div>
-                <Space><ExclamationCircleOutlined style={{ color: '#faad14' }} /><Text>警告</Text></Space>
+                <Space><ExclamationCircleOutlined style={{ color: '#faad14' }} /><Text>{t('report.warn')}</Text></Space>
                 <Progress percent={Math.round(report.checks.filter(c => c.status === 'warn').length / 16 * 100)}
                   strokeColor="#faad14" size="small" />
               </div>
               <div>
-                <Space><CloseCircleOutlined style={{ color: '#ff4d4f' }} /><Text>未通过</Text></Space>
+                <Space><CloseCircleOutlined style={{ color: '#ff4d4f' }} /><Text>{t('report.fail')}</Text></Space>
                 <Progress percent={Math.round(report.checks.filter(c => c.status === 'fail').length / 16 * 100)}
                   strokeColor="#ff4d4f" size="small" />
               </div>
@@ -257,14 +259,14 @@ export default function Report() {
 
         {/* Qualitative Checks */}
         <Col xs={24} lg={12}>
-          <Card title="定性诊断 (8项)" style={{ background: '#fafafa' }}>
+          <Card title={t('report.dimension.qual', { count: 8 })} style={{ background: '#fafafa' }}>
             {qualChecks.map(renderCheckCard)}
           </Card>
         </Col>
 
         {/* Quantitative Checks */}
         <Col xs={24} lg={12}>
-          <Card title="定量诊断 (8项)" style={{ background: '#fafafa' }}>
+          <Card title={t('report.dimension.quant', { count: 9 })} style={{ background: '#fafafa' }}>
             {quantChecks.map(renderCheckCard)}
           </Card>
         </Col>
