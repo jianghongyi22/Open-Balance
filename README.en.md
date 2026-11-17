@@ -86,7 +86,7 @@ npm install
 npm run dev      # dev server → http://localhost:5173
 npm run build    # typecheck + production build → dist/
 npm run preview  # preview the production build
-npm test         # run all tests (90 cases)
+npm test         # run all tests (93 cases)
 ```
 
 Don't want to type data? The onboarding offers **"Load sample data"** — a realistic mid-life family in a tier-2 city (mortgage, stocks, insurance, deposits).
@@ -100,7 +100,7 @@ Don't want to type data? The onboarding offers **"Load sample data"** — a real
 | Charts | ECharts |
 | State | Zustand (localStorage persistence, versioned migration) |
 | Spreadsheets | exceljs + custom RFC4180 CSV parser (UTF-8/GBK) |
-| Tests | Vitest 5 (engine 47 + importer 37 + store 6) |
+| Tests | Vitest 5 (engine 50 + importer 37 + store 6) |
 
 The engine is a pure function of the snapshot: `diagnose(snapshot) → DiagnosticReport`. Each of the 17 checks is one module under `src/engine/checks/`, all thresholds live in `src/data/thresholds.ts`, and i18n dictionaries live in `src/i18n/` (any new user-facing text must be added in both zh and en).
 

@@ -232,15 +232,25 @@ export function normalizeRiskScore(rawScore: number): number {
   return Math.round((rawScore / MAX_RISK_SCORE) * 100)
 }
 
-// Risk profile labels
-export function getRiskProfile(score: number): { level: string; description: string } {
-  if (score <= 30) {
-    return { level: '保守型', description: '以资产保值为首要目标，适合低风险配置' }
-  }
-  if (score <= 60) {
-    return { level: '稳健型', description: '在风险可控前提下追求适度增值' }
-  }
-  return { level: '进取型', description: '愿意承受较高风险以换取更高收益' }
+// Risk profile labels (bilingual)
+const RISK_PROFILES = {
+  conservative: {
+    zh: { level: '保守型', description: '以资产保值为首要目标，适合低风险配置' },
+    en: { level: 'Conservative', description: 'Capital preservation first; suited to low-risk allocations' },
+  },
+  moderate: {
+    zh: { level: '稳健型', description: '在风险可控前提下追求适度增值' },
+    en: { level: 'Moderate', description: 'Moderate growth within a controlled risk envelope' },
+  },
+  aggressive: {
+    zh: { level: '进取型', description: '愿意承受较高风险以换取更高收益' },
+    en: { level: 'Aggressive', description: 'Willing to take higher risk for higher returns' },
+  },
+} as const
+
+export function getRiskProfile(score: number, locale: Locale = 'zh'): { level: string; description: string } {
+  const key: 'conservative' | 'moderate' | 'aggressive' = getRiskProfileKey(score)
+  return locale === 'en' ? { ...RISK_PROFILES[key].en } : { ...RISK_PROFILES[key].zh }
 }
 
 // Risk profile key for engine thresholds

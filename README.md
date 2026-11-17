@@ -86,7 +86,7 @@ npm install
 npm run dev      # 开发模式 → http://localhost:5173
 npm run build    # 类型检查 + 生产构建 → dist/
 npm run preview  # 本地预览生产构建
-npm test         # 运行全部测试（82 个用例）
+npm test         # 运行全部测试（93 个用例）
 ```
 
 不想录入数据？引导页提供**「载入示例数据体验」**，一键载入一个二线城市中年家庭的完整资产配置（含房贷、股票、保险、存款）。
@@ -100,7 +100,7 @@ npm test         # 运行全部测试（82 个用例）
 | 图表 | ECharts |
 | 状态 | Zustand（localStorage 持久化） |
 | 表格解析 | exceljs + 自实现 CSV 解析（UTF-8/GBK 自适应） |
-| 测试 | Vitest 5（引擎 47 + 导入 35 用例） |
+| 测试 | Vitest 5（引擎 50 + 导入 37 + store 6 用例） |
 
 架构核心：诊断引擎是快照的**纯函数** `diagnose(snapshot) → DiagnosticReport`。17 项检查各一个模块（`src/engine/checks/`），全部阈值集中在 `src/data/thresholds.ts` 单源管理，市场参数（收益/波动/相关性矩阵，2015-2024 公开统计回测值）在 `src/data/marketParams.ts`——换数据不换逻辑，`scripts/backtest-market-params.mjs` 支持自定义数据重算。
 
@@ -125,6 +125,7 @@ npm test
 
 - `tests/engine.test.ts` — 诊断引擎：评分、评级、一票警告、临界检查、指标计算
 - `tests/importer.test.ts` — 六种导入格式的完整用例（`test-data/` 目录存放样本文件）
+- `tests/store.test.ts` — 快照历史与持久化迁移（jsdom）
 - 兜底路径：空文件、无法识别的表格
 
 ## 项目状态

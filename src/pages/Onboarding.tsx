@@ -96,7 +96,7 @@ export default function Onboarding() {
           extra={t('onboarding.eduTier.extra')}>
           <Select
             allowClear
-            placeholder="无教育目标"
+            placeholder={t('onboarding.eduTier.none')}
             options={[
               { value: 'domestic', label: t('onboarding.eduTier.domestic') },
               { value: 'overseas', label: t('onboarding.eduTier.overseas') },
@@ -142,7 +142,7 @@ export default function Onboarding() {
   // Step 2: Completion
   const rawScore = Object.values(riskAnswers).reduce((a, b) => a + b, 0)
   const normalized = normalizeRiskScore(rawScore)
-  const riskProfile = getRiskProfile(normalized)
+  const riskProfile = getRiskProfile(normalized, locale)
 
   const renderStep2 = () => (
     <Card style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
@@ -152,7 +152,7 @@ export default function Onboarding() {
         subTitle={
           <div>
             <Paragraph>{t('onboarding.step3.score', { score: normalized })}</Paragraph>
-            <Paragraph strong>{locale === 'en' ? (riskProfile.level === '保守型' ? 'Conservative' : riskProfile.level === '稳健型' ? 'Moderate' : 'Aggressive') : riskProfile.level} — {riskProfile.description}</Paragraph>
+            <Paragraph strong>{riskProfile.level} — {riskProfile.description}</Paragraph>
             <Divider />
             <Paragraph type="secondary">
               {t('onboarding.step3.next')}
