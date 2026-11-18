@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Card, Typography, Tag, Space, Checkbox, Empty, Collapse, Timeline } from 'antd'
 import { ClockCircleOutlined, CalendarOutlined, FieldTimeOutlined } from '@ant-design/icons'
 import { useStore } from '../store'
@@ -16,9 +16,8 @@ const urgencyConfig: Record<Urgency, { color: string; icon: React.ReactNode }> =
 }
 
 export default function Recommendations() {
-  const { assets, liabilities, profile } = useStore()
+  const { assets, liabilities, profile, completedRecommendations, toggleRecommendation } = useStore()
   const { t, locale, L } = useI18n()
-  const [checked, setChecked] = useState<Set<string>>(new Set())
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: profile! }), [assets, liabilities, profile])
   const report = useMemo(() => diagnose(snapshot, { locale }), [snapshot, locale])
@@ -30,12 +29,8 @@ export default function Recommendations() {
   const thisMonth = recs.filter((r) => r.urgency === 'this_month')
   const thisQuarter = recs.filter((r) => r.urgency === 'this_quarter')
 
-  const toggleCheck = (id: string) => {
-    const next = new Set(checked)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    setChecked(next)
-  }
+  // 勾选状态持久化在 store（localStorage），跨会话保留
+  const checked = new Set(completedRecommendations)
 
   const totalRecs = recs.length
   const completed = recs.filter((r) => checked.has(r.id)).length
@@ -51,7 +46,7 @@ export default function Recommendations() {
         style={{ marginBottom: 12 }}
         title={
           <Space>
-            <Checkbox checked={checked.has(rec.id)} onChange={() => toggleCheck(rec.id)} />
+            <Checkbox checked={checked.has(rec.id)} onChange={() => toggleRecommendation(rec.id)} />
             <Tag color={config.color} icon={config.icon}>{L.urgency[rec.urgency]}</Tag>
             <Text strong style={{ textDecoration: checked.has(rec.id) ? 'line-through' : 'none' }}>
               {rec.title}
@@ -95,7 +90,7 @@ export default function Recommendations() {
         <>
           {immediate.length > 0 && (
             <Card
-              title={<Space><ClockCircleOutlined style={{ color: '#ff4d4f' }} /><Text strong style={{ color: '#ff4d4f' }}>立即处理 ({immediate.length}项)</Text></Space>}
+              title={<Space><ClockCircleOutlined style={{ color: '#ff4d4f' }} /><Text strong style={{ color: '#ff4d4f' }}>{t('recs.immediate', { count: immediate.length })}</Text></Space>}
               style={{ marginBottom: 16, borderColor: '#ffccc7' }}
             >
               {immediate.map(renderRecCard)}
@@ -104,7 +99,7 @@ export default function Recommendations() {
 
           {thisMonth.length > 0 && (
             <Card
-              title={<Space><CalendarOutlined style={{ color: '#faad14' }} /><Text strong style={{ color: '#faad14' }}>本月内 ({thisMonth.length}项)</Text></Space>}
+              title={<Space><CalendarOutlined style={{ color: '#faad14' }} /><Text strong style={{ color: '#faad14' }}>{t('recs.month', { count: thisMonth.length })}</Text></Space>}
               style={{ marginBottom: 16, borderColor: '#ffe58f' }}
             >
               {thisMonth.map(renderRecCard)}
@@ -113,7 +108,7 @@ export default function Recommendations() {
 
           {thisQuarter.length > 0 && (
             <Card
-              title={<Space><FieldTimeOutlined style={{ color: '#1890ff' }} /><Text strong style={{ color: '#1890ff' }}>本季度内 ({thisQuarter.length}项)</Text></Space>}
+              title={<Space><FieldTimeOutlined style={{ color: '#1890ff' }} /><Text strong style={{ color: '#1890ff' }}>{t('recs.quarter', { count: thisQuarter.length })}</Text></Space>}
               style={{ borderColor: '#91caff' }}
             >
               {thisQuarter.map(renderRecCard)}

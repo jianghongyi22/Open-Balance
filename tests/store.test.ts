@@ -84,3 +84,41 @@ describe('净值快照历史 (Issue #14)', () => {
     expect(migrated.snapshots[0].id).toBe('s1')
   })
 })
+
+// ============================================================
+// Issue #23: 建议清单勾选状态持久化
+// ============================================================
+
+describe('建议勾选持久化 (Issue #23)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    useStore.setState({ completedRecommendations: [] })
+  })
+
+  it('toggleRecommendation 应添加并保持勾选', () => {
+    const { toggleRecommendation } = useStore.getState()
+    toggleRecommendation('R-Q03')
+    expect(useStore.getState().completedRecommendations).toContain('R-Q03')
+  })
+
+  it('重复 toggle 应取消勾选', () => {
+    const { toggleRecommendation } = useStore.getState()
+    toggleRecommendation('R-Q03')
+    toggleRecommendation('R-Q03')
+    expect(useStore.getState().completedRecommendations).not.toContain('R-Q03')
+  })
+
+  it('v3 → v4 迁移：旧数据无 completedRecommendations 字段时应补空数组', () => {
+    const migrated = migratePersistedState({ assets: [], liabilities: [], profile: null })
+    expect(Array.isArray(migrated.completedRecommendations)).toBe(true)
+    expect(migrated.completedRecommendations).toHaveLength(0)
+  })
+
+  it('v3 → v4 迁移：已有勾选记录时应保留', () => {
+    const migrated = migratePersistedState({
+      assets: [], liabilities: [], profile: null,
+      completedRecommendations: ['R-Q01', 'R-Q09'],
+    })
+    expect(migrated.completedRecommendations).toEqual(['R-Q01', 'R-Q09'])
+  })
+})

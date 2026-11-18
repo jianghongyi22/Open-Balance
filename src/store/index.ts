@@ -40,6 +40,10 @@ export interface AppStore {
   snapshots: NetWorthSnapshot[]
   addSnapshot: (snapshot: Omit<NetWorthSnapshot, 'id'>) => void
 
+  // 建议清单勾选状态（持久化，id 形如 R-Q03）
+  completedRecommendations: string[]
+  toggleRecommendation: (id: string) => void
+
   // Actions: Assets
   addAsset: (asset: Omit<Asset, 'id'>) => void
   updateAsset: (id: string, updates: Partial<Asset>) => void
@@ -75,11 +79,14 @@ const DEFAULT_SHOCKS: ScenarioShocks = {
   incomeInterruptionMonths: 0,
 }
 
-/** 持久化版本迁移链（v2 → v3：新增 snapshots 历史字段） */
+/** 持久化版本迁移链（v3 → v4：新增 completedRecommendations 字段） */
 export function migratePersistedState(persistedState: unknown): AppStore {
   const state = persistedState as Partial<AppStore>
   if (!Array.isArray(state.snapshots)) {
     state.snapshots = []
+  }
+  if (!Array.isArray(state.completedRecommendations)) {
+    state.completedRecommendations = []
   }
   return state as AppStore
 }
@@ -97,6 +104,7 @@ export const useStore = create<AppStore>()(
       onboardingStep: 0,
       activeShocks: DEFAULT_SHOCKS,
       snapshots: [],
+      completedRecommendations: [],
 
       setActiveShocks: (shocks) => set({ activeShocks: shocks }),
 
@@ -110,6 +118,13 @@ export const useStore = create<AppStore>()(
           // 上限 100 条，淘汰最旧
           return { snapshots: next.slice(-100) }
         }),
+
+      toggleRecommendation: (id) =>
+        set((state) => ({
+          completedRecommendations: state.completedRecommendations.includes(id)
+            ? state.completedRecommendations.filter((r) => r !== id)
+            : [...state.completedRecommendations, id],
+        })),
 
       // --- Assets ---
       addAsset: (asset) =>
@@ -191,6 +206,7 @@ export const useStore = create<AppStore>()(
           onboardingStep: 0,
           activeShocks: DEFAULT_SHOCKS,
           snapshots: [],
+          completedRecommendations: [],
         }),
 
       exportData: () => {
@@ -204,7 +220,7 @@ export const useStore = create<AppStore>()(
     }),
     {
       name: 'open-balance-store',
-      version: 3,
+      version: 4,
       // 版本迁移链：数据模型变更在此逐级升级
       migrate: migratePersistedState,
       storage: createJSONStorage(() => ({
