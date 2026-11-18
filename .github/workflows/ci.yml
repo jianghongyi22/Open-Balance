@@ -26,5 +26,5 @@ jobs:
       # picomatch ReDoS (GHSA-fc5q-39xc-vjpf) 影响所有版本且无修复版，
       # 经 tinyglobby 波及 vite/vitest/typescript-eslint 等所有 Vite 项目。
       # 上游发布修复后执行 npm audit fix 并把本步骤恢复为 --audit-level=high。
-      - run: npm audit --audit-level=high || echo "::warning::npm audit: high-severity findings present (see above; currently non-blocking)"
+      - run: 'npm audit --audit-level=high || echo "::warning::npm audit: high-severity findings present (currently non-blocking)"'
 
