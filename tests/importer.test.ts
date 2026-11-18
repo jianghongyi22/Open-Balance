@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { processImport, parseSpreadsheetBytes, parseCSV, autoMapColumns } from '../src/importer/index'
-import type { ImportResult } from '../src/importer/types'
+import { classifyConsumption, estimateMonthlyConsumption, transactionsToAssets } from '../src/importer/converter'
+import type { ImportResult, RawTransaction } from '../src/importer/types'
 
 // ============================================================
 // Import Format Test Cases
@@ -68,16 +69,17 @@ describe('微信支付账单 (wechat-bill.csv)', () => {
     expect(lqt).toBeDefined()
     expect(lqt!.category).toBe('cash_deposit')
     expect(lqt!.subCategory).toBe('货币基金')
-    // +20,000 转入 − 474.30 消费 = 19,525.70
-    expect(lqt!.marketValue).toBe(19_526)
+    // +20,000 转入；外卖/打车/星巴克等 4 笔消费（474.30）已剔除，不参与资产估值
+    expect(lqt!.marketValue).toBe(20_000)
   })
 
   it('应聚合出微信零钱资产', () => {
     const lq = result.assets.find((a) => a.name === '微信零钱')
     expect(lq).toBeDefined()
     expect(lq!.category).toBe('cash_deposit')
-    // 收入 42,300 − 零钱支出 9,429.70（含信用卡还款6,000）= 32,870.30
-    expect(lq!.marketValue).toBe(32_870)
+    // 收入 42,300 − 非消费支出 6,300（支付宝红包 300 + 信用卡还款 6,000）= 36,000
+    // 超市/加油/网购等消费 3,129.70 已剔除
+    expect(lq!.marketValue).toBe(36_000)
   })
 
   it('理财通申购应产生一条警告（无法推定持仓）', () => {
@@ -118,8 +120,8 @@ describe('支付宝账单 (alipay-bill.csv)', () => {
   it('应聚合出支付宝余额资产', () => {
     const ye = result.assets.find((a) => a.name === '支付宝余额')
     expect(ye).toBeDefined()
-    // 收入 4,200 − 支出 762.20 = 3,437.80
-    expect(ye!.marketValue).toBe(3_438)
+    // 收入 4,200；麦当劳/天猫超市/滴滴/肯德基/优衣库 5 笔消费 762.20 已剔除
+    expect(ye!.marketValue).toBe(4_200)
   })
 
   it('基金定投扣款应产生一条警告', () => {
@@ -151,15 +153,15 @@ describe('随手记 (suishouji.csv)', () => {
   it('应按账户聚合出工商银行储蓄', () => {
     const icbc = result.assets.find((a) => a.name === '工商银行储蓄')
     expect(icbc).toBeDefined()
-    // 工资 48,000 − (45+286.50+320+2,000×2) = 43,348.50
-    expect(icbc!.marketValue).toBe(43_349)
+    // 工资 48,000 − 基金定投 4,000 = 44,000；餐饮/超市/物业消费 651.50 已剔除
+    expect(icbc!.marketValue).toBe(44_000)
   })
 
   it('应按账户聚合出招商银行储蓄', () => {
     const cmb = result.assets.find((a) => a.name === '招商银行储蓄')
     expect(cmb).toBeDefined()
-    // 稿费 2,500 − 超市 156 = 2,344
-    expect(cmb!.marketValue).toBe(2_344)
+    // 稿费 2,500；超市消费 156 已剔除
+    expect(cmb!.marketValue).toBe(2_500)
   })
 
   it('无警告', () => {
@@ -323,5 +325,96 @@ describe('自定义列映射 (Issue #17)', () => {
     expect(result.assets).toHaveLength(1)
     expect(result.assets[0].name).toBe('活期')
     expect(result.assets[0].category).toBe('cash_deposit')
+  })
+})
+
+// ------------------------------------------------------------
+// 7. 消费识别与月度支出估算（#22）
+// ------------------------------------------------------------
+
+describe('消费识别 (consumption classification)', () => {
+  const tx = (overrides: Partial<RawTransaction>): RawTransaction => ({
+    date: '2026-03-01',
+    type: 'expense',
+    amount: 100,
+    originalCategory: '',
+    description: '',
+    counterparty: '',
+    paymentMethod: '',
+    source: 'test',
+    ...overrides,
+  })
+
+  it('超市/外卖/加油/物业等关键词应判定为消费', () => {
+    const samples = [
+      { description: '永辉超市', counterparty: '永辉超市' },
+      { description: '美团外卖订单' },
+      { description: '中石化加油' },
+      { description: '一季度物业费' },
+      { originalCategory: '餐饮美食', description: '午餐' },
+      { description: '滴滴出行打车' },
+    ]
+    for (const s of samples) {
+      expect(classifyConsumption(tx(s))).toBe(true)
+    }
+  })
+
+  it('理财申购/信用卡还款/工资收入不应判定为消费', () => {
+    expect(classifyConsumption(tx({ description: '稳健理财申购' }))).toBe(false)
+    expect(classifyConsumption(tx({ description: '信用卡还款' }))).toBe(false)
+    expect(classifyConsumption(tx({ description: '沪深300定投' }))).toBe(false)
+    expect(classifyConsumption(tx({ type: 'income', description: '工资入账' }))).toBe(false)
+    expect(classifyConsumption(tx({ type: 'transfer', description: '朋友转账' }))).toBe(false)
+  })
+
+  it('按账单周期折算月均消费（微信账单：10 笔 3,604 元，约 4 个月 → 901/月）', () => {
+    const { result } = wechat
+    expect(result.stats.consumptionTxCount).toBe(10)
+    expect(result.stats.consumptionTotal).toBe(3_604)
+    expect(result.stats.consumptionMonths).toBe(4)
+    expect(result.stats.consumptionMonthly).toBe(901)
+  })
+
+  it('支付宝账单消费统计（5 笔 762 元）', () => {
+    const { result } = alipay
+    expect(result.stats.consumptionTxCount).toBe(5)
+    expect(result.stats.consumptionTotal).toBe(762)
+    expect(result.stats.consumptionMonthly).toBe(191)
+  })
+
+  it('随手记账单消费统计（4 笔 808 元）', () => {
+    const { result } = suishouji
+    expect(result.stats.consumptionTxCount).toBe(4)
+    expect(result.stats.consumptionTotal).toBe(808)
+    expect(result.stats.consumptionMonthly).toBe(202)
+  })
+
+  it('纯消费账单：不产出资产，且不再给出「可能为理财申购」的误导警告', () => {
+    const pure = Array.from({ length: 12 }, (_, i) =>
+      tx({
+        date: i < 6 ? `2026-01-0${i + 1}` : `2026-03-0${i - 5}`,
+        description: i % 2 === 0 ? '永辉超市购物' : '美团外卖',
+        amount: 100 + i * 10,
+      })
+    )
+    const warnings: string[] = []
+    const assets = transactionsToAssets(pure, '微信支付', warnings)
+    expect(assets).toHaveLength(0)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('全部为生活消费支出')
+    expect(warnings[0]).not.toContain('理财申购')
+
+    const est = estimateMonthlyConsumption(pure)
+    expect(est.txCount).toBe(12)
+    expect(est.total).toBe(1_860) // 100+110+...+210
+    expect(est.months).toBe(2)
+    expect(est.monthly).toBe(930)
+  })
+
+  it('单笔消费：至少按 1 个月折算', () => {
+    const one = [tx({ description: '超市' })]
+    const est = estimateMonthlyConsumption(one)
+    expect(est.months).toBe(1)
+    expect(est.monthly).toBe(100)
   })
 })

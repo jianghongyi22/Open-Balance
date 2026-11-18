@@ -48,7 +48,7 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
   const [headers, setHeaders] = useState<string[]>([])
   const [columnMap, setColumnMap] = useState<ColumnMap | null>(null)
 
-  const { importAssets, importLiabilities, setProfile } = useStore()
+  const { importAssets, importLiabilities, setProfile, updateProfile } = useStore()
   const { t, L } = useI18n()
 
   const handleFile = async (file: File) => {
@@ -141,6 +141,13 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
     onClose()
   }
 
+  const handleApplyConsumption = () => {
+    if (!result?.stats.consumptionMonthly) return
+    const value = Math.round(result.stats.consumptionMonthly)
+    updateProfile({ monthlyEssentialExpense: value })
+    message.success(t('import.consumptionApplied', { value: formatCNY(value) }))
+  }
+
   // --- Stage 0: Upload ---
   const uploadProps: UploadProps = {
     name: 'file',
@@ -220,6 +227,23 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
               <Descriptions.Item label={t('import.totalExpense')}>{formatCNY(stats.totalExpense)}</Descriptions.Item>
             )}
           </Descriptions>
+
+          {/* 消费识别：月均生活消费估算，可一键校准家庭档案 */}
+          {stats.consumptionMonthly && stats.consumptionMonthly > 0 && (
+            <Space wrap style={{ marginTop: 8 }}>
+              <Tag color="green">{t('import.consumption')}</Tag>
+              <Text strong>
+                {t('import.consumptionValue', {
+                  monthly: formatCNY(stats.consumptionMonthly),
+                  count: stats.consumptionTxCount,
+                  months: stats.consumptionMonths,
+                })}
+              </Text>
+              <Button size="small" type="link" onClick={handleApplyConsumption}>
+                {t('import.applyConsumption')}
+              </Button>
+            </Space>
+          )}
         </Card>
 
         {/* 通用 CSV：可编辑列映射 */}

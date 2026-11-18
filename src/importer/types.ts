@@ -68,6 +68,13 @@ export interface ImportStats {
   periodStart: string | null
   periodEnd: string | null
   detectedInstitutions: string[]
+  /** 消费类支出（超市/餐饮等生活开支）统计 */
+  consumptionTotal: number
+  consumptionTxCount: number
+  /** 月均生活消费估算（按账单周期折算），无消费时为 null */
+  consumptionMonthly: number | null
+  /** 账单周期折算的月数 */
+  consumptionMonths: number
 }
 
 // --- Parser interface ---

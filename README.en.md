@@ -69,7 +69,7 @@ Six presets (stocks -20%, property -10%, rates +100bp, CNY +5%, 6-month income g
 | Generic CSV/Excel | any asset list, auto column mapping (editable) |
 | Open-Balance backup | native export (JSON, incl. liabilities & profile) |
 
-Auto-detect → aggregate transactions into assets (known institutions like Yu'ebao / WeChat Money are classified automatically) → preview & confirm. The data model reserves `heldAt`/`accountRef` for Phase-3 broker/bank API integrations.
+Auto-detect → aggregate transactions into assets (known institutions like Yu'ebao / WeChat Money are classified automatically) → preview & confirm. **Living expenses (supermarkets, dining, transport, …) are classified automatically** and excluded from asset valuation; the preview shows an **estimated monthly spend** you can apply to the household profile in one click (sharper emergency-fund & cash-flow checks). The data model reserves `heldAt`/`accountRef` for Phase-3 broker/bank API integrations.
 
 ### 🔒 Privacy
 

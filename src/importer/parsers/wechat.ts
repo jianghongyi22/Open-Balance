@@ -10,7 +10,7 @@
 import type { ImportResult, RawTransaction, FormatParser } from '../types'
 import { getSheetRows } from '../spreadsheet'
 import type { ParsedWorkbook } from '../spreadsheet'
-import { transactionsToAssets } from '../converter'
+import { transactionsToAssets, buildStats } from '../converter'
 import { toDateStr, toAmount } from '../dates'
 
 export const wechatParser: FormatParser = {
@@ -88,21 +88,13 @@ export const wechatParser: FormatParser = {
     if (transactions.length === 0) return null
 
     const assets = transactionsToAssets(transactions, '微信支付', warnings)
-    const dates = transactions.map((t) => t.date).filter(Boolean).sort()
 
     return {
       format: 'wechat',
       assets,
       transactions,
       warnings,
-      stats: {
-        totalTransactions: transactions.length,
-        totalIncome: transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-        totalExpense: transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
-        periodStart: dates[0] ?? null,
-        periodEnd: dates[dates.length - 1] ?? null,
-        detectedInstitutions: [...new Set(transactions.map((t) => t.paymentMethod).filter(Boolean))],
-      },
+      stats: buildStats(transactions),
     }
   },
 }

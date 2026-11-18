@@ -106,7 +106,7 @@ export function processImport(input: ProcessImportInput): {
       assets: [],
       transactions: [],
       warnings: ['无法解析该文件，请确认文件格式正确。如为CSV/Excel文件，请检查列名和编码。'],
-      stats: { totalTransactions: 0, totalIncome: 0, totalExpense: 0, periodStart: null, periodEnd: null, detectedInstitutions: [] },
+      stats: { totalTransactions: 0, totalIncome: 0, totalExpense: 0, periodStart: null, periodEnd: null, detectedInstitutions: [], consumptionTotal: 0, consumptionTxCount: 0, consumptionMonthly: null, consumptionMonths: 0 },
     }
   }
 
@@ -149,7 +149,7 @@ export function importWithColumnMap(
     assets: [],
     transactions: [],
     warnings: ['列映射导入失败'],
-    stats: { totalTransactions: 0, totalIncome: 0, totalExpense: 0, periodStart: null, periodEnd: null, detectedInstitutions: [] },
+    stats: { totalTransactions: 0, totalIncome: 0, totalExpense: 0, periodStart: null, periodEnd: null, detectedInstitutions: [], consumptionTotal: 0, consumptionTxCount: 0, consumptionMonthly: null, consumptionMonths: 0 },
   }
 }
 
@@ -166,7 +166,7 @@ function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
 
 // Re-export for convenience
 export { detectFormat } from './detector'
-export { transactionsToAssets, detectLiabilities, extractIssuer } from './converter'
+export { transactionsToAssets, detectLiabilities, extractIssuer, classifyConsumption, estimateMonthlyConsumption, buildStats } from './converter'
 export { autoMapColumns, COLUMN_FIELDS, headerOptions } from './column-mapper'
 export { IMPORT_FORMAT_LABELS } from './types'
 export { parseSpreadsheetBytes, parseCSV, getSheetRows, decodeText } from './spreadsheet'

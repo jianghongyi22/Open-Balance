@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { ImportResult, RawTransaction, FormatParser } from '../types'
 import { getSheetRows } from '../spreadsheet'
 import type { ParsedWorkbook } from '../spreadsheet'
-import { transactionsToAssets } from '../converter'
+import { transactionsToAssets, buildStats } from '../converter'
 import { toDateStr, toAmount } from '../dates'
 
 export const bankFlowParser: FormatParser = {
@@ -149,21 +149,12 @@ export const bankFlowParser: FormatParser = {
       }
     }
 
-    const dates = transactions.map((t) => t.date).filter(Boolean).sort()
-
     return {
       format: 'bank-generic',
       assets,
       transactions,
       warnings,
-      stats: {
-        totalTransactions: transactions.length,
-        totalIncome: transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-        totalExpense: transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
-        periodStart: dates[0] ?? null,
-        periodEnd: dates[dates.length - 1] ?? null,
-        detectedInstitutions: [bankName],
-      },
+      stats: buildStats(transactions, [bankName]),
     }
   },
 }

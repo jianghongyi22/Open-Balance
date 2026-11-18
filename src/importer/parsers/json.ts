@@ -44,6 +44,10 @@ export const openBalanceJsonParser: FormatParser = {
           periodStart: null,
           periodEnd: null,
           detectedInstitutions: [...new Set(assets.map((a) => a.heldAt).filter(Boolean))] as string[],
+          consumptionTotal: 0,
+          consumptionTxCount: 0,
+          consumptionMonthly: null,
+          consumptionMonths: 0,
         },
         // Custom payload so ImportModal can restore liabilities/profile
         extras,

@@ -7,7 +7,7 @@
 
 import { v4 as uuidv4 } from 'uuid'
 import type { Asset, AssetCategory } from '../types'
-import type { RawTransaction, InstitutionInfo } from './types'
+import type { RawTransaction, InstitutionInfo, ImportStats } from './types'
 
 // --- Issuer recognition (发行方) ---
 
@@ -130,6 +130,91 @@ export function matchCategory(
   return null
 }
 
+// --- Consumption classification (消费识别) ---
+
+/** 生活消费关键词表：命中即判定为消费类支出，不参与资产归组 */
+const CONSUMPTION_KEYWORDS = [
+  // 商超购物
+  '超市', '便利店', '商场', '购物', '京东', '淘宝', '天猫', '拼多多', '美团', '饿了么', '外卖',
+  '买菜', '菜市场', '水果', '生鲜', '盒马', '山姆', '永辉', '沃尔玛', '家乐福', '屈臣氏',
+  // 餐饮
+  '餐饮', '餐厅', '饭店', '小吃', '奶茶', '咖啡', '早餐', '午餐', '晚餐', '食堂',
+  // 出行
+  '打车', '滴滴', '出租', '地铁', '公交', '加油', '加油站', '中石化', '中石油', '停车', '高速', 'ETC', '火车票', '机票',
+  // 居住
+  '水电煤', '水费', '电费', '燃气', '物业', '房租', '宽带', '话费', '充值',
+  // 生活服务
+  '理发', '美容', '快递', '学费', '医疗', '医院', '药店', '药品', '体检', '社保', '缴税',
+  // 娱乐
+  '电影', '游戏', '娱乐', 'KTV', '旅游', '酒店', '门票',
+  // 日常
+  '日用', '服装', '服饰', '母婴', '宠物',
+]
+
+/**
+ * 判定一笔支出是否为生活消费（而非资产流向）。
+ * 依据：交易描述/原始分类/交易对方中命中消费关键词。
+ */
+export function classifyConsumption(tx: RawTransaction): boolean {
+  if (tx.type !== 'expense') return false
+  const text = `${tx.description} ${tx.originalCategory} ${tx.counterparty}`
+  return CONSUMPTION_KEYWORDS.some((kw) => text.includes(kw))
+}
+
+/** 按账单周期折算月均消费：天数 / 30.44 四舍五入，至少按 1 个月计 */
+export function estimateMonthlyConsumption(
+  transactions: RawTransaction[]
+): { total: number; txCount: number; months: number; monthly: number | null } {
+  const consumptionTx = transactions.filter(classifyConsumption)
+  const total = consumptionTx.reduce((s, tx) => s + tx.amount, 0)
+  if (consumptionTx.length === 0 || total === 0) {
+    return { total: 0, txCount: 0, months: 0, monthly: null }
+  }
+
+  const dates = consumptionTx.map((t) => t.date).filter(Boolean).sort()
+  let months = 1
+  if (dates.length >= 2) {
+    const first = new Date(dates[0]).getTime()
+    const last = new Date(dates[dates.length - 1]).getTime()
+    if (last > first) {
+      const days = (last - first) / 86400000
+      months = Math.max(1, Math.round(days / 30.44))
+    }
+  }
+
+  return {
+    total: Math.round(total),
+    txCount: consumptionTx.length,
+    months,
+    monthly: Math.round(total / months),
+  }
+}
+
+/**
+ * 交易类 parser 共用的统计汇总（含消费识别）。
+ */
+export function buildStats(
+  transactions: RawTransaction[],
+  detectedInstitutions?: string[]
+): ImportStats {
+  const dates = transactions.map((t) => t.date).filter(Boolean).sort()
+  const consumption = estimateMonthlyConsumption(transactions)
+  return {
+    totalTransactions: transactions.length,
+    totalIncome: transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+    totalExpense: transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+    periodStart: dates[0] ?? null,
+    periodEnd: dates[dates.length - 1] ?? null,
+    detectedInstitutions:
+      detectedInstitutions ??
+      [...new Set(transactions.map((t) => t.paymentMethod).filter(Boolean))],
+    consumptionTotal: consumption.total,
+    consumptionTxCount: consumption.txCount,
+    consumptionMonthly: consumption.monthly,
+    consumptionMonths: consumption.months,
+  }
+}
+
 /**
  * Aggregate raw transactions into Asset entries.
  *
@@ -137,6 +222,8 @@ export function matchCategory(
  * 1. Group transactions by source institution + detected category
  * 2. For each group, estimate balance from net inflow
  * 3. Create an Asset per group
+ *
+ * 消费类支出（超市/餐饮等）不参与归组——它们不是资产流向。
  */
 export function transactionsToAssets(
   transactions: RawTransaction[],
@@ -154,6 +241,9 @@ export function transactionsToAssets(
   }>()
 
   for (const tx of transactions) {
+    // 消费类支出不是资产流向，不参与归组（统计见 buildStats）
+    if (classifyConsumption(tx)) continue
+
     // Determine group key
     const catMatch = matchCategory(tx.description, tx.originalCategory)
     const groupKey = `${tx.paymentMethod || tx.source}_${catMatch?.category ?? 'unknown'}_${catMatch?.subCategory ?? ''}`
@@ -183,10 +273,11 @@ export function transactionsToAssets(
     if (Math.abs(group.netFlow) < 10) continue
 
     // Negative net flow means money left this account into products we
-    // can't value from the statement alone (funds, loans, etc.)
+    // can't value from the statement alone (funds, loans, etc.).
+    // 消费类支出已在归组前剔除，此处仅剩未识别的非消费流出。
     if (group.netFlow < 0) {
       warnings.push(
-        `检测到「${groupKey.split('_')[0]}」净支出 ¥${Math.round(-group.netFlow).toLocaleString()}（可能为理财申购/贷款还款），流水无法推定其资产价值，请手动补充`
+        `检测到「${groupKey.split('_')[0]}」净支出 ¥${Math.round(-group.netFlow).toLocaleString()}（可能为理财申购/贷款还款/未识别转账），流水无法推定其资产价值，请手动补充`
       )
       continue
     }
@@ -256,7 +347,18 @@ export function transactionsToAssets(
   }
 
   if (assets.length === 0 && transactions.length > 0) {
-    warnings.push(`未能从 ${transactions.length} 笔交易中识别出资产，请手动录入`)
+    const consumptionTx = transactions.filter(classifyConsumption)
+    const isPureConsumption =
+      consumptionTx.length > 0 &&
+      transactions.every((tx) => classifyConsumption(tx) || tx.type === 'transfer')
+    if (isPureConsumption) {
+      // 账单全部为消费支出：这是正常现象，给出说明性提示而非告警
+      warnings.push(
+        `该账单共 ${consumptionTx.length} 笔交易，全部为生活消费支出（合计 ¥${Math.round(consumptionTx.reduce((s, t) => s + t.amount, 0)).toLocaleString()}），未识别出可配置资产。消费月均估算已显示在导入预览中。`
+      )
+    } else {
+      warnings.push(`未能从 ${transactions.length} 笔交易中识别出资产，请手动录入`)
+    }
   }
 
   return assets
