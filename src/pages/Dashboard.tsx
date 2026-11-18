@@ -24,19 +24,16 @@ export default function Dashboard() {
   const { t, locale, L } = useI18n()
 
   // 定期重新评估提醒（#26）：距上次访问超过阈值时提示
-  const [daysSinceVisit, setDaysSinceVisit] = useState<number>(0)
+  // 天数在首次渲染时从持久化的 lastVisitAt 一次性算出，避免 effect 内 setState
+  const [daysSinceVisit] = useState<number>(() =>
+    lastVisitAt ? daysBetween(lastVisitAt, new Date().toISOString()) : 0
+  )
   const visitRecorded = useRef(false)
   useEffect(() => {
     if (visitRecorded.current) return
     visitRecorded.current = true
-    const now = new Date().toISOString()
-    if (lastVisitAt) {
-      setDaysSinceVisit(daysBetween(lastVisitAt, now))
-    }
-    // zustand 外部 store 写入，不会触发 React 级联渲染
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLastVisitAt(now)
-  }, [lastVisitAt, setLastVisitAt])
+    setLastVisitAt(new Date().toISOString())
+  }, [setLastVisitAt])
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: profile! }), [assets, liabilities, profile])
   const report = useMemo(() => diagnose(snapshot, { locale }), [snapshot, locale])
