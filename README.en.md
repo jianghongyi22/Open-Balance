@@ -75,6 +75,13 @@ Auto-detect → aggregate transactions into assets (known institutions like Yu'e
 
 **Zero backend**: everything lives in browser localStorage, bill files are parsed locally and never uploaded. Regular JSON export is recommended. See the in-app Privacy page.
 
+### 🧭 Ongoing Tracking & Usability
+
+- **Stale value reminders**: every asset records a `valueDate`; the assets table flags "N days stale" in two tiers (30/90 days), so manual-entry drift is visible at a glance
+- **Periodic re-evaluation reminder**: if your last visit was 30+ days ago, the dashboard prompts you to review assets and refresh the diagnosis
+- **Persistent recommendation checklist**: check states survive sessions in localStorage, so you can track progress
+- **Mobile responsive**: collapsible sidebar, adaptive stat cards / tables / modals / descriptions — the full import → checkup flow works on a phone
+
 ## Quick Start
 
 ```bash
@@ -86,7 +93,7 @@ npm install
 npm run dev      # dev server → http://localhost:5173
 npm run build    # typecheck + production build → dist/
 npm run preview  # preview the production build
-npm test         # run all tests (93 cases)
+npm test         # run all tests (119 cases)
 ```
 
 Don't want to type data? The onboarding offers **"Load sample data"** — a realistic mid-life family in a tier-2 city (mortgage, stocks, insurance, deposits).
@@ -100,7 +107,7 @@ Don't want to type data? The onboarding offers **"Load sample data"** — a real
 | Charts | ECharts |
 | State | Zustand (localStorage persistence, versioned migration) |
 | Spreadsheets | exceljs + custom RFC4180 CSV parser (UTF-8/GBK) |
-| Tests | Vitest 5 (engine 50 + importer 37 + store 6) |
+| Tests | Vitest 5 (engine 50 + importer 44 + store 21 + smoke 4) |
 
 The engine is a pure function of the snapshot: `diagnose(snapshot) → DiagnosticReport`. Each of the 17 checks is one module under `src/engine/checks/`, all thresholds live in `src/data/thresholds.ts`, and i18n dictionaries live in `src/i18n/` (any new user-facing text must be added in both zh and en).
 
@@ -123,8 +130,9 @@ npm test
 ```
 
 - `tests/engine.test.ts` — engine: scoring, grades, critical-cap, evidence tiers, boundaries
-- `tests/importer.test.ts` — six import formats with fixtures under `test-data/`
-- `tests/store.test.ts` — snapshot history and persistence migration (jsdom)
+- `tests/importer.test.ts` — six import formats with fixtures under `test-data/`, plus consumption classification
+- `tests/store.test.ts` — snapshot history, persistence migration, recommendation checklist, value freshness (jsdom)
+- `tests/smoke.test.tsx` — UI smoke tests: onboarding → sample → report → import → language switch
 
 Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md) · Data model: [docs/data-model.md](docs/data-model.md) · Calibration: [docs/calibration.md](docs/calibration.md)
 

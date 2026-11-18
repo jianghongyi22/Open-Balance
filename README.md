@@ -75,6 +75,13 @@ Open-Balance 做的不是交易平台，而是**体检**：用公认的理财框
 
 **零后端**：所有数据存储在浏览器 localStorage，账单文件仅在前端解析，不上传任何服务器。建议定期使用内置 JSON 导出备份。
 
+### 🧭 持续跟踪与可用性
+
+- **资产市值过期提醒**：每项资产自动记录 `valueDate`，30/90 天分档提示「数据已 N 天未更新」，手动录入的漂移风险一目了然
+- **定期重新评估提醒**：距上次访问超过 30 天，总览页提示重新审视资产与诊断
+- **建议清单持久化**：勾选状态保存在 localStorage，跨会话跟进执行进度
+- **移动端适配**：侧栏断点折叠、统计卡/表格/弹窗/描述列表自适应，手机上完成导入→体检全流程
+
 ## 快速开始
 
 ```bash
@@ -86,7 +93,7 @@ npm install
 npm run dev      # 开发模式 → http://localhost:5173
 npm run build    # 类型检查 + 生产构建 → dist/
 npm run preview  # 本地预览生产构建
-npm test         # 运行全部测试（93 个用例）
+npm test         # 运行全部测试（119 个用例）
 ```
 
 不想录入数据？引导页提供**「载入示例数据体验」**，一键载入一个二线城市中年家庭的完整资产配置（含房贷、股票、保险、存款）。
@@ -100,7 +107,7 @@ npm test         # 运行全部测试（93 个用例）
 | 图表 | ECharts |
 | 状态 | Zustand（localStorage 持久化） |
 | 表格解析 | exceljs + 自实现 CSV 解析（UTF-8/GBK 自适应） |
-| 测试 | Vitest 5（引擎 50 + 导入 37 + store 6 用例） |
+| 测试 | Vitest 5（引擎 50 + 导入 44 + store 21 + 冒烟 4 用例） |
 
 架构核心：诊断引擎是快照的**纯函数** `diagnose(snapshot) → DiagnosticReport`。17 项检查各一个模块（`src/engine/checks/`），全部阈值集中在 `src/data/thresholds.ts` 单源管理，市场参数（收益/波动/相关性矩阵，2015-2024 公开统计回测值）在 `src/data/marketParams.ts`——换数据不换逻辑，`scripts/backtest-market-params.mjs` 支持自定义数据重算。
 
@@ -124,8 +131,9 @@ npm test
 ```
 
 - `tests/engine.test.ts` — 诊断引擎：评分、评级、一票警告、临界检查、指标计算
-- `tests/importer.test.ts` — 六种导入格式的完整用例（`test-data/` 目录存放样本文件）
-- `tests/store.test.ts` — 快照历史与持久化迁移（jsdom）
+- `tests/importer.test.ts` — 六种导入格式的完整用例 + 消费识别（`test-data/` 目录存放样本文件）
+- `tests/store.test.ts` — 快照历史、持久化迁移、建议勾选、市值时效（jsdom）
+- `tests/smoke.test.tsx` — UI 冒烟测试：引导→示例→报告→导入→语言切换
 - 兜底路径：空文件、无法识别的表格
 
 ## 项目状态
