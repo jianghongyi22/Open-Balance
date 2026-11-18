@@ -174,3 +174,8 @@ export const GRADE_BANDS: { grade: import('../types').Grade; min: number; label:
 // --- Re-evaluation Reminder (Q26 / Dashboard) ---
 // 距上次访问超过该天数时，总览页提示重新评估
 export const REASSESS_REMINDER_DAYS = 30
+
+// --- Asset Value Freshness (Q24) ---
+// 资产市值数据距今天数分档：≤30 正常 / 30-90 提醒 / >90 严重过期
+export const STALE_VALUE_WARN_DAYS = 30
+export const STALE_VALUE_CRITICAL_DAYS = 90

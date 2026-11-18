@@ -77,3 +77,18 @@ export function toAmount(value: unknown): number {
   const n = parseFloat(cleaned)
   return isNaN(n) ? 0 : n
 }
+
+// --- Elapsed days & today ---
+
+/** 计算两个 ISO 日期/时间相差的天数（向下取整，负数按 0 计） */
+export function daysBetween(fromISO: string, toISO: string): number {
+  const from = new Date(fromISO).getTime()
+  const to = new Date(toISO).getTime()
+  if (Number.isNaN(from) || Number.isNaN(to) || to <= from) return 0
+  return Math.floor((to - from) / 86400000)
+}
+
+/** 今天的 ISO 日期（YYYY-MM-DD，UTC） */
+export function todayISO(): string {
+  return new Date().toISOString().slice(0, 10)
+}

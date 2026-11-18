@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore, migratePersistedState, daysBetween } from '../src/store'
-import type { NetWorthSnapshot } from '../src/types'
+import { assetStaleness } from '../src/utils/staleness'
+import type { NetWorthSnapshot, Asset } from '../src/types'
 
 // ============================================================
 // Issue #14: 净值快照历史（store 层）
@@ -159,5 +160,63 @@ describe('定期重新评估提醒 (Issue #26)', () => {
       lastVisitAt: '2026-10-01T08:00:00Z',
     })
     expect(migrated.lastVisitAt).toBe('2026-10-01T08:00:00Z')
+  })
+})
+
+// ============================================================
+// Issue #24: 资产市值过期提醒（valueDate + 时效分档）
+// ============================================================
+
+const baseAsset: Omit<Asset, 'id'> = {
+  name: '测试存款',
+  category: 'cash_deposit',
+  marketValue: 10_000,
+  currency: 'CNY',
+  liquidity: 'high',
+  riskLevel: 'low',
+}
+
+describe('资产市值时效 (Issue #24)', () => {
+  const NOW = '2026-11-18'
+
+  beforeEach(() => {
+    localStorage.clear()
+    useStore.setState({ assets: [], liabilities: [], profile: null })
+  })
+
+  it('assetStaleness 分档：30 天内 fresh，30-90 天 warn，90 天及以上 critical', () => {
+    expect(assetStaleness('2026-11-18', NOW).level).toBe('fresh')
+    expect(assetStaleness('2026-10-19', NOW)).toEqual({ days: 30, level: 'warn' })
+    expect(assetStaleness('2026-08-20', NOW)).toEqual({ days: 90, level: 'critical' })
+  })
+
+  it('无 valueDate 记录时 level 为 null', () => {
+    expect(assetStaleness(undefined, NOW)).toEqual({ days: null, level: null })
+  })
+
+  it('addAsset 应自动记录 valueDate', () => {
+    useStore.getState().addAsset(baseAsset)
+    const saved = useStore.getState().assets[0]
+    expect(saved.valueDate).toBeTruthy()
+  })
+
+  it('updateAsset 应刷新 valueDate', () => {
+    useStore.getState().addAsset({ ...baseAsset, valueDate: '2026-01-01' })
+    const id = useStore.getState().assets[0].id
+    useStore.getState().updateAsset(id, { marketValue: 20_000 })
+    expect(useStore.getState().assets[0].valueDate).not.toBe('2026-01-01')
+    expect(useStore.getState().assets[0].marketValue).toBe(20_000)
+  })
+
+  it('importAssets 应为无 valueDate 的导入资产补记录', () => {
+    useStore.getState().importAssets([baseAsset])
+    expect(useStore.getState().assets[0].valueDate).toBeTruthy()
+  })
+
+  it('loadSampleData 应为示例资产记录 valueDate', () => {
+    useStore.getState().loadSampleData()
+    const assets = useStore.getState().assets
+    expect(assets.length).toBeGreaterThan(0)
+    expect(assets.every((a) => a.valueDate)).toBe(true)
   })
 })

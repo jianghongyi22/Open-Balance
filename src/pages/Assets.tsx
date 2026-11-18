@@ -12,6 +12,7 @@ import type { Asset, AssetCategory, Liquidity, RiskLevel, Currency, Liability, L
 import { CATEGORY_COLORS } from '../data/marketParams'
 import { categoryBreakdown, netWorth } from '../engine/metrics'
 import { formatCNY } from '../utils/format'
+import { assetStaleness } from '../utils/staleness'
 
 const { Title, Text } = Typography
 
@@ -118,6 +119,23 @@ export default function Assets() {
       render: (v: number) => <Text strong>{formatCNY(v)}</Text>,
     },
     { title: t('assets.col.currency'), dataIndex: 'currency', key: 'currency', width: 60, render: (c: Currency) => L.currency[c] },
+    {
+      title: t('assets.col.freshness'), dataIndex: 'valueDate', key: 'valueDate', width: 120,
+      render: (valueDate: string | undefined) => {
+        const staleness = assetStaleness(valueDate)
+        if (staleness.level === null) {
+          return <Tag>{t('assets.freshness.never')}</Tag>
+        }
+        if (staleness.level === 'fresh') {
+          return <Tag color="green">{t('assets.freshness.ok')}</Tag>
+        }
+        return (
+          <Tag color={staleness.level === 'critical' ? 'red' : 'orange'}>
+            {t('assets.freshness.warn', { days: staleness.days ?? 0 })}
+          </Tag>
+        )
+      },
+    },
     {
       title: '流动性', dataIndex: 'liquidity', key: 'liquidity', width: 80,
       render: (l: Liquidity) => <Tag color={l === 'high' ? 'green' : l === 'medium' ? 'orange' : 'red'}>{L.liquidity[l]}</Tag>,

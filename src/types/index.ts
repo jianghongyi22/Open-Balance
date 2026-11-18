@@ -109,6 +109,8 @@ export interface Asset {
   purchaseDate?: string
   maturityDate?: string
   lockUpUntil?: string
+  /** 最近一次估值/更新日期（ISO），用于市值过期提醒 */
+  valueDate?: string
   isPrimaryResidence?: boolean
   insuranceCoverage?: number // 保额
   insuranceAnnualPremium?: number // 年保费

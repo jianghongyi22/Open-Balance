@@ -19,6 +19,8 @@ import {
   SAMPLE_LIABILITIES,
   SAMPLE_PROFILE,
 } from '../data/sampleData'
+import { todayISO } from '../utils/dates'
+export { daysBetween } from '../utils/dates'
 
 // --- Store Shape ---
 
@@ -98,14 +100,6 @@ export function migratePersistedState(persistedState: unknown): AppStore {
   return state as AppStore
 }
 
-/** 计算两个 ISO 时间相差的天数（向下取整，负数按 0 计） */
-export function daysBetween(fromISO: string, toISO: string): number {
-  const from = new Date(fromISO).getTime()
-  const to = new Date(toISO).getTime()
-  if (Number.isNaN(from) || Number.isNaN(to) || to <= from) return 0
-  return Math.floor((to - from) / 86400000)
-}
-
 // --- Store ---
 
 export const useStore = create<AppStore>()(
@@ -147,13 +141,13 @@ export const useStore = create<AppStore>()(
       // --- Assets ---
       addAsset: (asset) =>
         set((state) => ({
-          assets: [...state.assets, { ...asset, id: uuidv4() }],
+          assets: [...state.assets, { ...asset, id: uuidv4(), valueDate: asset.valueDate ?? todayISO() }],
         })),
 
       updateAsset: (id, updates) =>
         set((state) => ({
           assets: state.assets.map((a) =>
-            a.id === id ? { ...a, ...updates } : a
+            a.id === id ? { ...a, ...updates, valueDate: todayISO() } : a
           ),
         })),
 
@@ -164,7 +158,7 @@ export const useStore = create<AppStore>()(
 
       loadSampleData: () =>
         set({
-          assets: SAMPLE_ASSETS,
+          assets: SAMPLE_ASSETS.map((a) => ({ ...a, valueDate: todayISO() })),
           liabilities: SAMPLE_LIABILITIES,
           profile: SAMPLE_PROFILE,
           onboardingComplete: true,
@@ -173,7 +167,7 @@ export const useStore = create<AppStore>()(
 
       importAssets: (assets) =>
         set((state) => ({
-          assets: [...state.assets, ...assets],
+          assets: [...state.assets, ...assets.map((a) => ({ ...a, valueDate: a.valueDate ?? todayISO() }))],
         })),
 
       // --- Liabilities ---
