@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useStore, migratePersistedState } from '../src/store'
+import { useStore, migratePersistedState, daysBetween } from '../src/store'
 import type { NetWorthSnapshot } from '../src/types'
 
 // ============================================================
@@ -108,17 +108,56 @@ describe('建议勾选持久化 (Issue #23)', () => {
     expect(useStore.getState().completedRecommendations).not.toContain('R-Q03')
   })
 
-  it('v3 → v4 迁移：旧数据无 completedRecommendations 字段时应补空数组', () => {
+  it('v4 → v5 迁移：旧数据无 completedRecommendations 字段时应补空数组', () => {
     const migrated = migratePersistedState({ assets: [], liabilities: [], profile: null })
     expect(Array.isArray(migrated.completedRecommendations)).toBe(true)
     expect(migrated.completedRecommendations).toHaveLength(0)
   })
 
-  it('v3 → v4 迁移：已有勾选记录时应保留', () => {
+  it('v4 → v5 迁移：已有勾选记录时应保留', () => {
     const migrated = migratePersistedState({
       assets: [], liabilities: [], profile: null,
       completedRecommendations: ['R-Q01', 'R-Q09'],
     })
     expect(migrated.completedRecommendations).toEqual(['R-Q01', 'R-Q09'])
+  })
+})
+
+// ============================================================
+// Issue #26: 定期重新评估提醒（lastVisitAt + daysBetween）
+// ============================================================
+
+describe('定期重新评估提醒 (Issue #26)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    useStore.setState({ lastVisitAt: null })
+  })
+
+  it('setLastVisitAt 应记录访问时间', () => {
+    useStore.getState().setLastVisitAt('2026-11-01T08:00:00Z')
+    expect(useStore.getState().lastVisitAt).toBe('2026-11-01T08:00:00Z')
+  })
+
+  it('daysBetween 应计算相隔天数（向下取整）', () => {
+    expect(daysBetween('2026-11-01T08:00:00Z', '2026-11-16T08:00:00Z')).toBe(15)
+    expect(daysBetween('2026-11-01T23:00:00Z', '2026-11-02T01:00:00Z')).toBe(0)
+  })
+
+  it('daysBetween 对非法或倒序时间应返回 0', () => {
+    expect(daysBetween('bad-date', '2026-11-16T08:00:00Z')).toBe(0)
+    expect(daysBetween('2026-11-16T08:00:00Z', '2026-11-01T08:00:00Z')).toBe(0)
+  })
+
+  it('v4 → v5 迁移：旧数据无 lastVisitAt 字段时应补 null', () => {
+    const migrated = migratePersistedState({ assets: [], liabilities: [], profile: null })
+    expect(migrated.lastVisitAt).toBeNull()
+  })
+
+  it('v4 → v5 迁移：已有 lastVisitAt 时应保留', () => {
+    const migrated = migratePersistedState({
+      assets: [], liabilities: [], profile: null,
+      lastVisitAt: '2026-10-01T08:00:00Z',
+    })
+    expect(migrated.lastVisitAt).toBe('2026-10-01T08:00:00Z')
   })
 })

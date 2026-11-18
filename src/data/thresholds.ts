@@ -170,3 +170,7 @@ export const GRADE_BANDS: { grade: import('../types').Grade; min: number; label:
   { grade: 'C', min: 55, label: '关注' },
   { grade: 'D', min: 0, label: '风险' },
 ]
+
+// --- Re-evaluation Reminder (Q26 / Dashboard) ---
+// 距上次访问超过该天数时，总览页提示重新评估
+export const REASSESS_REMINDER_DAYS = 30

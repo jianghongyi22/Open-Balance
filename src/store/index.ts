@@ -44,6 +44,10 @@ export interface AppStore {
   completedRecommendations: string[]
   toggleRecommendation: (id: string) => void
 
+  // 上次访问时间（定期重新评估提醒 #26）
+  lastVisitAt: string | null
+  setLastVisitAt: (dateISO: string) => void
+
   // Actions: Assets
   addAsset: (asset: Omit<Asset, 'id'>) => void
   updateAsset: (id: string, updates: Partial<Asset>) => void
@@ -79,7 +83,7 @@ const DEFAULT_SHOCKS: ScenarioShocks = {
   incomeInterruptionMonths: 0,
 }
 
-/** 持久化版本迁移链（v3 → v4：新增 completedRecommendations 字段） */
+/** 持久化版本迁移链（v4 → v5：新增 lastVisitAt 字段） */
 export function migratePersistedState(persistedState: unknown): AppStore {
   const state = persistedState as Partial<AppStore>
   if (!Array.isArray(state.snapshots)) {
@@ -88,7 +92,18 @@ export function migratePersistedState(persistedState: unknown): AppStore {
   if (!Array.isArray(state.completedRecommendations)) {
     state.completedRecommendations = []
   }
+  if (state.lastVisitAt === undefined) {
+    state.lastVisitAt = null
+  }
   return state as AppStore
+}
+
+/** 计算两个 ISO 时间相差的天数（向下取整，负数按 0 计） */
+export function daysBetween(fromISO: string, toISO: string): number {
+  const from = new Date(fromISO).getTime()
+  const to = new Date(toISO).getTime()
+  if (Number.isNaN(from) || Number.isNaN(to) || to <= from) return 0
+  return Math.floor((to - from) / 86400000)
 }
 
 // --- Store ---
@@ -105,6 +120,7 @@ export const useStore = create<AppStore>()(
       activeShocks: DEFAULT_SHOCKS,
       snapshots: [],
       completedRecommendations: [],
+      lastVisitAt: null,
 
       setActiveShocks: (shocks) => set({ activeShocks: shocks }),
 
@@ -125,6 +141,8 @@ export const useStore = create<AppStore>()(
             ? state.completedRecommendations.filter((r) => r !== id)
             : [...state.completedRecommendations, id],
         })),
+
+      setLastVisitAt: (dateISO) => set({ lastVisitAt: dateISO }),
 
       // --- Assets ---
       addAsset: (asset) =>
@@ -207,6 +225,7 @@ export const useStore = create<AppStore>()(
           activeShocks: DEFAULT_SHOCKS,
           snapshots: [],
           completedRecommendations: [],
+          lastVisitAt: null,
         }),
 
       exportData: () => {
@@ -220,7 +239,7 @@ export const useStore = create<AppStore>()(
     }),
     {
       name: 'open-balance-store',
-      version: 4,
+      version: 5,
       // 版本迁移链：数据模型变更在此逐级升级
       migrate: migratePersistedState,
       storage: createJSONStorage(() => ({

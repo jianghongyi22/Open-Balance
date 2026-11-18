@@ -1,16 +1,18 @@
-import { useMemo, useEffect } from 'react'
-import { Row, Col, Card, Statistic, Tag, Typography, Empty, Button, Space } from 'antd'
+import { useMemo, useEffect, useRef, useState } from 'react'
+import { Row, Col, Card, Statistic, Tag, Typography, Empty, Button, Space, Alert } from 'antd'
 import {
   WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { useNavigate } from 'react-router-dom'
-import { useStore } from '../store'
+import { useStore, daysBetween } from '../store'
 import { useI18n } from '../i18n'
 import { diagnose } from '../engine'
 import { categoryBreakdown, netWorth, emergencyMonths, debtToIncome, leverageRatio, liquidityRatio, spQuadrantAllocation } from '../engine/metrics'
 import { ASSET_CATEGORY_ORDER } from '../types'
 import { CATEGORY_COLORS } from '../data/marketParams'
+import { REASSESS_REMINDER_DAYS } from '../data/thresholds'
 import { formatCNY } from '../utils/format'
 import DisclaimerBanner from '../components/DisclaimerBanner'
 
@@ -18,8 +20,23 @@ const { Title, Text } = Typography
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { assets, liabilities, profile, snapshots, addSnapshot } = useStore()
+  const { assets, liabilities, profile, snapshots, addSnapshot, lastVisitAt, setLastVisitAt } = useStore()
   const { t, locale, L } = useI18n()
+
+  // 定期重新评估提醒（#26）：距上次访问超过阈值时提示
+  const [daysSinceVisit, setDaysSinceVisit] = useState<number>(0)
+  const visitRecorded = useRef(false)
+  useEffect(() => {
+    if (visitRecorded.current) return
+    visitRecorded.current = true
+    const now = new Date().toISOString()
+    if (lastVisitAt) {
+      setDaysSinceVisit(daysBetween(lastVisitAt, now))
+    }
+    // zustand 外部 store 写入，不会触发 React 级联渲染
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLastVisitAt(now)
+  }, [lastVisitAt, setLastVisitAt])
 
   const snapshot = useMemo(() => ({ assets, liabilities, profile: profile! }), [assets, liabilities, profile])
   const report = useMemo(() => diagnose(snapshot, { locale }), [snapshot, locale])
@@ -148,6 +165,21 @@ export default function Dashboard() {
   return (
     <div>
       <DisclaimerBanner compact />
+      {daysSinceVisit >= REASSESS_REMINDER_DAYS && (
+        <Alert
+          type="info"
+          showIcon
+          icon={<ReloadOutlined />}
+          message={t('dashboard.reassess.title', { days: daysSinceVisit })}
+          description={t('dashboard.reassess.desc')}
+          action={
+            <Button size="small" type="primary" onClick={() => navigate('/report')}>
+              {t('dashboard.reassess.action')}
+            </Button>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Row gutter={[16, 16]}>
         {/* Hero: Net Worth + Grade */}
         <Col span={24}>

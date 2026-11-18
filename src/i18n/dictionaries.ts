@@ -91,6 +91,9 @@ export const UI_ZH: Dict = {
   'dashboard.quadrant.current': '当前配置',
   'dashboard.quadrant.target': '目标配置',
   'dashboard.pleaseOnboard': '请先完成引导',
+  'dashboard.reassess.title': '距上次评估已 {days} 天',
+  'dashboard.reassess.desc': '资产状况可能已变化，建议重新审视资产并更新诊断。',
+  'dashboard.reassess.action': '去重新评估',
 
   // --- 资产台账 ---
   'assets.title': '资产台账',
@@ -417,6 +420,9 @@ export const UI_EN: Dict = {
   'dashboard.quadrant.current': 'Current',
   'dashboard.quadrant.target': 'Target',
   'dashboard.pleaseOnboard': 'Please complete onboarding first',
+  'dashboard.reassess.title': '{days} days since your last checkup',
+  'dashboard.reassess.desc': 'Your finances may have changed — review your assets and refresh the diagnosis.',
+  'dashboard.reassess.action': 'Re-evaluate now',
 
   // --- Assets ---
   'assets.title': 'Assets',
