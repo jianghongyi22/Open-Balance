@@ -181,7 +181,7 @@ export default function Dashboard() {
         {/* Hero: Net Worth + Grade */}
         <Col span={24}>
           <Card>
-            <Row align="middle" justify="space-between">
+            <Row align="middle" justify="space-between" wrap>
               <Col>
                 <Text type="secondary">{t('dashboard.netWorth')}</Text>
                 <Title level={2} style={{ margin: '4px 0 0' }}>

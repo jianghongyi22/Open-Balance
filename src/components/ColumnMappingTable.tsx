@@ -71,6 +71,7 @@ export default function ColumnMappingTable({
         size="small"
         pagination={false}
         bordered
+        scroll={{ x: 400 }}
       />
     </div>
   )

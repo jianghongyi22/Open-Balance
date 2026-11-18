@@ -207,7 +207,7 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
       <div>
         {/* Format & Stats Card */}
         <Card style={{ marginBottom: 16 }}>
-          <Descriptions size="small" column={3}>
+          <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3 }}>
             <Descriptions.Item label={t('import.format')}>
               <Tag color="blue">{fmtLabel}</Tag>
             </Descriptions.Item>
@@ -331,7 +331,8 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
           </Space>
         ) : stage === 2 ? null : null
       }
-      width={800}
+      width="min(800px, 94vw)"
+      style={{ top: 16, maxWidth: '94vw' }}
       destroyOnClose
     >
       <Steps

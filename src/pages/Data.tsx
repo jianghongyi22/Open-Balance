@@ -72,7 +72,7 @@ export default function DataManagement() {
         {/* Summary */}
         <Col span={24}>
           <Card title={t('data.overview')}>
-            <Descriptions column={3} size="small">
+            <Descriptions column={{ xs: 1, sm: 2, md: 3 }} size="small">
               <Descriptions.Item label={t('data.assetCount')}>{assets.length} {t('assets.stat.countSuffix')}</Descriptions.Item>
               <Descriptions.Item label={t('data.assetValue')}>{formatCNY(totalAssetValue)}</Descriptions.Item>
               <Descriptions.Item label={t('data.liabilityCount')}>{liabilities.length} {t('assets.stat.countSuffix')}</Descriptions.Item>

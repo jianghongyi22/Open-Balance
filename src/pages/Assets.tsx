@@ -205,17 +205,17 @@ export default function Assets() {
       children: (
         <div>
           <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-            <Col span={8}><Card size="small"><Statistic title={t('assets.stat.totalAssets')} value={formatCNY(assets.reduce((s, a) => s + a.marketValue, 0))} /></Card></Col>
-            <Col span={8}><Card size="small"><Statistic title={t('assets.stat.netWorth')} value={formatCNY(totalNW)} /></Card></Col>
-            <Col span={8}><Card size="small"><Statistic title={t('assets.stat.assetCount')} value={assets.length} suffix={t('assets.stat.countSuffix')} /></Card></Col>
+            <Col xs={24} sm={8}><Card size="small"><Statistic title={t('assets.stat.totalAssets')} value={formatCNY(assets.reduce((s, a) => s + a.marketValue, 0))} /></Card></Col>
+            <Col xs={24} sm={8}><Card size="small"><Statistic title={t('assets.stat.netWorth')} value={formatCNY(totalNW)} /></Card></Col>
+            <Col xs={24} sm={8}><Card size="small"><Statistic title={t('assets.stat.assetCount')} value={assets.length} suffix={t('assets.stat.countSuffix')} /></Card></Col>
           </Row>
-          <Space style={{ marginBottom: 16 }}>
+          <Space style={{ marginBottom: 16 }} wrap>
             {categorySelect}
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreate(selectedCategory)}>
               {t('assets.addAsset')}
             </Button>
           </Space>
-          <Table dataSource={assets} columns={columns} rowKey="id" size="small" pagination={{ pageSize: 20 }} />
+          <Table dataSource={assets} columns={columns} rowKey="id" size="small" pagination={{ pageSize: 20 }} scroll={{ x: 1100 }} />
         </div>
       ),
     },
@@ -225,14 +225,14 @@ export default function Assets() {
       children: (
         <div>
           <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-            <Col span={8}><Card size="small"><Statistic title={t('assets.stat.totalLiabilities')} value={formatCNY(liabilities.reduce((s, l) => s + l.remainingPrincipal, 0))} /></Card></Col>
-            <Col span={8}><Card size="small"><Statistic title={t('assets.stat.monthlyPayments')} value={formatCNY(liabilities.reduce((s, l) => s + l.monthlyPayment, 0))} /></Card></Col>
-            <Col span={8}><Card size="small"><Statistic title={t('assets.stat.liabilityCount')} value={liabilities.length} suffix={t('assets.stat.countSuffix')} /></Card></Col>
+            <Col xs={24} sm={8}><Card size="small"><Statistic title={t('assets.stat.totalLiabilities')} value={formatCNY(liabilities.reduce((s, l) => s + l.remainingPrincipal, 0))} /></Card></Col>
+            <Col xs={24} sm={8}><Card size="small"><Statistic title={t('assets.stat.monthlyPayments')} value={formatCNY(liabilities.reduce((s, l) => s + l.monthlyPayment, 0))} /></Card></Col>
+            <Col xs={24} sm={8}><Card size="small"><Statistic title={t('assets.stat.liabilityCount')} value={liabilities.length} suffix={t('assets.stat.countSuffix')} /></Card></Col>
           </Row>
           <Button type="primary" icon={<PlusOutlined />} onClick={openLiabilityCreate} style={{ marginBottom: 16 }}>
             {t('assets.addLiability')}
           </Button>
-          <Table dataSource={liabilities} columns={liabilityColumns} rowKey="id" size="small" pagination={{ pageSize: 20 }} />
+          <Table dataSource={liabilities} columns={liabilityColumns} rowKey="id" size="small" pagination={{ pageSize: 20 }} scroll={{ x: 800 }} />
         </div>
       ),
     },

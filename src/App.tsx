@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Typography, Button, Space } from 'antd'
+import { Layout, Menu, Typography, Button, Space, Grid } from 'antd'
 import {
   DashboardOutlined,
   PieChartOutlined,
@@ -40,6 +40,8 @@ function AppLayout() {
   const location = useLocation()
   const { onboardingComplete, profile } = useStore()
   const { t, locale, setLocale } = useI18n()
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
 
   const menuItems = menuIcons.map((item) => ({
     ...item,
@@ -61,6 +63,8 @@ function AppLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
         width={200}
+        breakpoint="lg"
+        collapsedWidth={0}
         style={{
           background: '#fff',
           borderRight: '1px solid #f0f0f0',
@@ -94,20 +98,24 @@ function AppLayout() {
         <Header
           style={{
             background: '#fff',
-            padding: '0 24px',
+            padding: isMobile ? '0 12px' : '0 24px',
             borderBottom: '1px solid #f0f0f0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            {t('header.subtitle')}
-          </Text>
-          <Space>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {t('header.disclaimer')}
+          {!isMobile && (
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              {t('header.subtitle')}
             </Text>
+          )}
+          <Space>
+            {!isMobile && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {t('header.disclaimer')}
+              </Text>
+            )}
             <Button size="small" onClick={() => setLocale(locale === 'en' ? 'zh' : 'en')}>
               {t('common.language')}
             </Button>
@@ -115,7 +123,7 @@ function AppLayout() {
         </Header>
         <Content
           style={{
-            padding: 24,
+            padding: isMobile ? 12 : 24,
             background: '#f5f5f5',
             overflow: 'auto',
           }}

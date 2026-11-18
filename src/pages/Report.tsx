@@ -122,7 +122,7 @@ export default function Report() {
       }
     >
       <Paragraph type="secondary" style={{ marginBottom: 8 }}>{check.description}</Paragraph>
-      <Descriptions size="small" column={2}>
+      <Descriptions size="small" column={{ xs: 1, sm: 2 }}>
         <Descriptions.Item label={t('report.framework')}>{check.framework || '—'}</Descriptions.Item>
         <Descriptions.Item label={t('report.measured')}>{check.measuredLabel}{check.layer === 'quantitative' && check.id !== 'Q15' ? t('report.estimated') : ''}</Descriptions.Item>
         <Descriptions.Item label={t('report.threshold')} span={2}>{check.threshold}</Descriptions.Item>

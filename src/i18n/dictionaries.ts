@@ -217,6 +217,10 @@ export const UI_ZH: Dict = {
   'scenario.noChanges': '该情景下所有检查项未发生变化',
   'scenario.details': '状态变化明细',
   'scenario.noStatusChanges': '无状态变化',
+  'scenario.axisScoreChange': '分数变化',
+  'scenario.gradeSuffix': '({grade}级)',
+  'scenario.scorePoints': '{diff} 分',
+  'scenario.gradeChanged': ' · 等级 {change}',
 
   // --- 数据管理 ---
   'data.title': '数据管理',
@@ -550,6 +554,10 @@ export const UI_EN: Dict = {
   'scenario.noChanges': 'No check changed under this scenario',
   'scenario.details': 'Status Changes',
   'scenario.noStatusChanges': 'No status changes',
+  'scenario.axisScoreChange': 'Score change',
+  'scenario.gradeSuffix': '({grade})',
+  'scenario.scorePoints': '{diff} pts',
+  'scenario.gradeChanged': ' · grade {change}',
 
   // --- Data ---
   'data.title': 'Data',
